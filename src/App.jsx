@@ -9,6 +9,8 @@ function App() {
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shoppingCount, setShoppingCount] = useState(0);
+  const [shoppingMealIds, setShoppingMealIds] = useState([]);
+  const [statusLoaded, setStatusLoaded] = useState(false);
 
   // Fetch meals on mount
   useEffect(() => {
@@ -29,16 +31,17 @@ function App() {
     };
   }, []);
 
-  // Keep the shopping-list count (unique ingredient names) live in the nav.
+  // Keep the shopping-list status (nav count + which meals are on the list)
+  // live, and load it up front so meal cards render in the right state.
   useEffect(() => {
-    loadShoppingCount();
+    loadShoppingStatus();
 
     const subscription = supabase
-      .channel('shopping_count')
+      .channel('shopping_status')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shopping_list_items' },
-        () => loadShoppingCount()
+        () => loadShoppingStatus()
       )
       .subscribe();
 
@@ -47,22 +50,25 @@ function App() {
     };
   }, []);
 
-  const loadShoppingCount = async () => {
+  const loadShoppingStatus = async () => {
     const { data, error } = await supabase
       .from('shopping_list_items')
-      .select('ingredients(name)');
+      .select('meal_id, ingredients(name)');
 
     if (error) {
-      console.error('Error loading shopping count:', error);
-      return;
+      console.error('Error loading shopping status:', error);
+    } else {
+      const rows = data || [];
+      // Merge duplicate names, matching how the shopping list displays them.
+      const unique = new Set(
+        rows.map((row) =>
+          (row.ingredients?.name ?? 'Unknown item').trim().toLowerCase()
+        )
+      );
+      setShoppingCount(unique.size);
+      setShoppingMealIds([...new Set(rows.map((row) => row.meal_id))]);
     }
-    // Merge duplicate names, matching how the shopping list displays them.
-    const unique = new Set(
-      (data || []).map((row) =>
-        (row.ingredients?.name ?? 'Unknown item').trim().toLowerCase()
-      )
-    );
-    setShoppingCount(unique.size);
+    setStatusLoaded(true);
   };
 
   const fetchMeals = async () => {
@@ -132,13 +138,16 @@ function App() {
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
             </svg>
-            Shopping List{shoppingCount > 0 ? ` (${shoppingCount})` : ''}
+            Shopping List
+            {shoppingCount > 0 && (
+              <span className="nav-count">{shoppingCount}</span>
+            )}
           </button>
         </nav>
       </aside>
 
       <main className="app-main">
-        {loading ? (
+        {loading || !statusLoaded ? (
           <div className="loading">Loading your meals...</div>
         ) : (
           <>
@@ -146,11 +155,13 @@ function App() {
               <MealManager
                 meals={meals}
                 onMealAdded={fetchMeals}
-                onShoppingChanged={loadShoppingCount}
+                shoppingMealIds={shoppingMealIds}
+                setShoppingMealIds={setShoppingMealIds}
+                onShoppingChanged={loadShoppingStatus}
               />
             )}
             {view === 'shopping' && (
-              <ShoppingList onShoppingChanged={loadShoppingCount} />
+              <ShoppingList onShoppingChanged={loadShoppingStatus} />
             )}
           </>
         )}

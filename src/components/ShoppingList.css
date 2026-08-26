@@ -24,8 +24,8 @@
 .btn-clear {
   padding: 0.75rem 1.5rem;
   background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
+  color: var(--text-light);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   cursor: pointer;
   font-weight: 500;
@@ -33,7 +33,7 @@
 }
 
 .btn-clear:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--border);
 }
 
 .empty-list {
@@ -65,17 +65,68 @@
 
 .category-section {
   margin-bottom: 1.5rem;
+  background: var(--bg-card);
+  padding: 24px;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
 }
 
 .category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--primary-dark);
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+  transition: margin-bottom 0.28s ease;
+}
+
+.category-header.collapsed {
+  margin-bottom: 0;
+}
+
+.category-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.category-body.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.category-body > .items-list {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.category-header:focus,
+.category-header:focus-visible {
+  outline: none;
+}
+
+.category-count {
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.category-chevron {
+  flex-shrink: 0;
+  color: var(--text-light);
+  transition: transform 0.2s ease;
+}
+
+.category-header.collapsed .category-chevron {
+  transform: rotate(-90deg);
 }
 
 .items-list {
@@ -84,7 +135,7 @@
 
 .list-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   padding: 8px 16px;
   margin: 16px 0;
@@ -120,7 +171,18 @@
   user-select: none;
 }
 
+.item-meals-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
 .item-meals {
+  padding: 0.15rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 400;
   color: var(--text-light);
@@ -152,6 +214,9 @@
 }
 
 .progress {
+  position: sticky;
+  top: 1rem;
+  z-index: 20;
   margin-bottom: 1.5rem;
   padding: 1.5rem;
   background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);

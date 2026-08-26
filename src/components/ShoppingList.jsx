@@ -10,6 +10,16 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => new Set());
+
+  const toggleCategory = (category) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   // Load the whole shopping list and keep it in sync across devices.
   useEffect(() => {
@@ -71,13 +81,10 @@ export default function ShoppingList({ onShoppingChanged }) {
         ...g,
         count: g.ids.length,
         checked: g.checkedCount === g.ids.length,
-        mealNames: [...g.meals].sort().join(', '),
+        mealList: [...g.meals].sort(),
       }))
-      // Unchecked first, then alphabetical — mirrors how you shop.
-      .sort((a, b) => {
-        if (a.checked !== b.checked) return a.checked ? 1 : -1;
-        return a.name.localeCompare(b.name);
-      });
+      // Alphabetical only — keep a stable order so checking doesn't reorder.
+      .sort((a, b) => a.name.localeCompare(b.name));
   })();
 
   // Bucket the merged items by category, in standard aisle order.
@@ -176,9 +183,43 @@ export default function ShoppingList({ onShoppingChanged }) {
             </div>
             {categorySections.map((section) => (
               <div className="category-section" key={section.category}>
-                <h3 className="category-header">{section.category}</h3>
-                <ul className="items-list">
-                  {section.items.map((group) => (
+                <button
+                  type="button"
+                  className={`category-header${
+                    collapsed.has(section.category) ? ' collapsed' : ''
+                  }`}
+                  onClick={() => toggleCategory(section.category)}
+                  aria-expanded={!collapsed.has(section.category)}
+                >
+                  <span className="category-title">
+                    {section.category}{' '}
+                    <span className="category-count">
+                      ({section.items.filter((g) => g.checked).length}/
+                      {section.items.length})
+                    </span>
+                  </span>
+                  <svg
+                    className="category-chevron"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div
+                  className={`category-body${
+                    collapsed.has(section.category) ? ' collapsed' : ''
+                  }`}
+                >
+                  <ul className="items-list">
+                    {section.items.map((group) => (
                     <li
                       key={group.key}
                       className={`list-item ${group.checked ? 'checked' : ''}`}
@@ -196,13 +237,20 @@ export default function ShoppingList({ onShoppingChanged }) {
                             <span className="item-count">×{group.count}</span>
                           )}
                         </span>
-                        {group.mealNames && (
-                          <span className="item-meals">{group.mealNames}</span>
+                        {group.mealList.length > 0 && (
+                          <span className="item-meals-list">
+                            {group.mealList.map((mealName) => (
+                              <span key={mealName} className="item-meals">
+                                {mealName}
+                              </span>
+                            ))}
+                          </span>
                         )}
                       </label>
                     </li>
                   ))}
-                </ul>
+                  </ul>
+                </div>
               </div>
             ))}
           </>

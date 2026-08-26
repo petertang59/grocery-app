@@ -7,51 +7,25 @@ import './MealManager.css';
 
 const emptyIngredient = () => ({ name: '', category: '' });
 
-export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
+export default function MealManager({
+  meals,
+  onMealAdded,
+  onShoppingChanged,
+  shoppingMealIds,
+  setShoppingMealIds,
+}) {
   const toast = useToast();
   const [mealName, setMealName] = useState('');
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
   const [saving, setSaving] = useState(false);
   const [editingMealId, setEditingMealId] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [shoppingMealIds, setShoppingMealIds] = useState([]);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [formError, setFormError] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const isEditing = editingMealId !== null;
   const pendingDeleteMeal = meals.find((m) => m.id === pendingDeleteId);
-
-  // Track which meals already have their ingredients on the shopping list,
-  // and keep it in sync across devices.
-  useEffect(() => {
-    loadShoppingMealIds();
-
-    const subscription = supabase
-      .channel('meal_shopping_status')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_list_items' },
-        () => loadShoppingMealIds()
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const loadShoppingMealIds = async () => {
-    const { data, error } = await supabase
-      .from('shopping_list_items')
-      .select('meal_id');
-
-    if (error) {
-      console.error('Error loading shopping status:', error);
-      return;
-    }
-    setShoppingMealIds([...new Set((data || []).map((row) => row.meal_id))]);
-  };
 
   const addMealToList = async (meal) => {
     if (meal.ingredients.length === 0) {
@@ -282,7 +256,7 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
     <div className="meal-manager">
       <section className="meals-list-section">
         <div className="meals-list-header">
-          <h2>Your Meals ({meals.length})</h2>
+          <h2>Your Meals</h2>
           <button
             type="button"
             className="btn-create-meal"
@@ -298,7 +272,11 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
             No meals yet! Click "Create Meal" to get started.
           </p>
         ) : (
-          <div className="meals-grid">
+          <>
+            <p className="meals-count">
+              Showing {meals.length} {meals.length === 1 ? 'meal' : 'meals'}
+            </p>
+            <div className="meals-grid">
             {meals.map((meal) => (
               <div
                 key={meal.id}
@@ -413,7 +391,8 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </section>
 
@@ -443,6 +422,7 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
             </div>
 
             <form onSubmit={saveMeal} className="meal-form">
+              <div className="modal-body">
               <div className="form-group">
                 <label htmlFor="mealName">Meal Name</label>
                 <input
@@ -503,6 +483,7 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
               </button>
 
               {formError && <p className="form-error">{formError}</p>}
+              </div>
 
               <div className="form-actions">
                 <button
