@@ -141,7 +141,7 @@ export default function ShoppingList({ onShoppingChanged }) {
     <div className="shopping-list">
       <section className="list-section">
         <div className="list-header">
-          <h2>🛍️ Shopping List</h2>
+          <h2>Shopping List</h2>
           {groups.length > 0 && (
             <button className="btn-clear" onClick={() => setShowClearConfirm(true)}>
               Clear List
@@ -163,6 +163,17 @@ export default function ShoppingList({ onShoppingChanged }) {
           </div>
         ) : (
           <>
+            <div className="progress">
+              <p className="progress-text">
+                {grabbedCount} of {groups.length} items grabbed
+              </p>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
+                ></div>
+              </div>
+            </div>
             {categorySections.map((section) => (
               <div className="category-section" key={section.category}>
                 <h3 className="category-header">{section.category}</h3>
@@ -194,17 +205,6 @@ export default function ShoppingList({ onShoppingChanged }) {
                 </ul>
               </div>
             ))}
-            <div className="progress">
-              <p className="progress-text">
-                {grabbedCount} of {groups.length} items grabbed
-              </p>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
           </>
         )}
       </section>

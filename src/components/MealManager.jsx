@@ -58,6 +58,8 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
       toast('This meal has no ingredients to add.', 'error');
       return;
     }
+    // Update the UI immediately so the button rolls right away.
+    setShoppingMealIds((prev) => [...new Set([...prev, meal.id])]);
     try {
       const items = meal.ingredients.map((ing) => ({
         meal_id: meal.id,
@@ -70,15 +72,17 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
         .insert(items);
 
       if (error) throw error;
-      setShoppingMealIds((prev) => [...new Set([...prev, meal.id])]);
       onShoppingChanged?.();
     } catch (error) {
       console.error('Error adding meal to shopping list:', error);
       toast('Failed to add meal to the shopping list. Try again!', 'error');
+      setShoppingMealIds((prev) => prev.filter((id) => id !== meal.id));
     }
   };
 
   const removeMealFromList = async (meal) => {
+    // Update the UI immediately so the button rolls right away.
+    setShoppingMealIds((prev) => prev.filter((id) => id !== meal.id));
     try {
       const { error } = await supabase
         .from('shopping_list_items')
@@ -86,11 +90,11 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
         .eq('meal_id', meal.id);
 
       if (error) throw error;
-      setShoppingMealIds((prev) => prev.filter((id) => id !== meal.id));
       onShoppingChanged?.();
     } catch (error) {
       console.error('Error removing meal from shopping list:', error);
       toast('Failed to remove meal from the shopping list. Try again!', 'error');
+      setShoppingMealIds((prev) => [...new Set([...prev, meal.id])]);
     }
   };
 
@@ -283,8 +287,10 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
             type="button"
             className="btn-create-meal"
             onClick={openCreateModal}
+            aria-label="Create Meal"
           >
-            + Create Meal
+            <span className="create-plus" aria-hidden="true">+</span>
+            <span className="btn-create-label">Create Meal</span>
           </button>
         </div>
         {meals.length === 0 ? (
@@ -296,28 +302,72 @@ export default function MealManager({ meals, onMealAdded, onShoppingChanged }) {
             {meals.map((meal) => (
               <div
                 key={meal.id}
-                className={`meal-card${editingMealId === meal.id ? ' editing' : ''}`}
+                className={`meal-card${
+                  shoppingMealIds.includes(meal.id) ? ' in-list' : ''
+                }${editingMealId === meal.id ? ' editing' : ''}`}
               >
-                <h3>{meal.name}</h3>
-                <p className="ingredient-count">
-                  {meal.ingredients.length}{' '}
-                  {meal.ingredients.length === 1 ? 'ingredient' : 'ingredients'}
-                </p>
-                {shoppingMealIds.includes(meal.id) ? (
-                  <button
-                    className="btn-in-list"
-                    onClick={() => removeMealFromList(meal)}
-                  >
-                    ✓ In Shopping List
-                  </button>
-                ) : (
-                  <button
-                    className="btn-add-to-list"
-                    onClick={() => addMealToList(meal)}
-                  >
-                    + Add to Shopping List
-                  </button>
-                )}
+                <div className="meal-card-info">
+                  <h3>{meal.name}</h3>
+                  <p className="ingredient-count">
+                    {meal.ingredients.length}{' '}
+                    {meal.ingredients.length === 1 ? 'ingredient' : 'ingredients'}
+                  </p>
+                </div>
+                <button
+                  className={`btn-shop${
+                    shoppingMealIds.includes(meal.id) ? ' in-list' : ''
+                  }`}
+                  onClick={() =>
+                    shoppingMealIds.includes(meal.id)
+                      ? removeMealFromList(meal)
+                      : addMealToList(meal)
+                  }
+                  aria-label={
+                    shoppingMealIds.includes(meal.id)
+                      ? 'In shopping list'
+                      : 'Add to shopping list'
+                  }
+                >
+                  <span className="btn-roller">
+                    <span className="btn-face">
+                      <svg
+                        className="btn-icon"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="9" cy="21" r="1" />
+                        <circle cx="20" cy="21" r="1" />
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                      </svg>
+                      <span className="btn-label">In shopping list</span>
+                    </span>
+                    <span className="btn-face">
+                      <svg
+                        className="btn-icon icon-mobile-only"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      <span className="btn-label">Add to shopping list</span>
+                    </span>
+                  </span>
+                </button>
                 <div
                   className="meal-card-menu"
                   onClick={(e) => e.stopPropagation()}

@@ -29,36 +29,45 @@ body {
 .app-container {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
 }
 
-.app-header {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: white;
-  padding: 2rem 1.5rem;
-  box-shadow: var(--shadow-lg);
+.sidebar {
+  flex-shrink: 0;
+  width: 240px;
+  background: var(--bg-card);
+  color: var(--primary-dark);
+  padding: 2rem 1.25rem;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
   position: sticky;
   top: 0;
+  height: 100vh;
   z-index: 10;
 }
 
-.app-header h1 {
-  font-size: 1.75rem;
-  margin-bottom: 1rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.app-title {
+  font-size: 1.5rem;
+  color: var(--text);
 }
 
 .nav-buttons {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .nav-btn {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
   border-radius: 0.5rem;
   cursor: pointer;
   font-size: 1rem;
@@ -66,22 +75,32 @@ body {
   transition: all 0.2s ease;
 }
 
+.nav-icon {
+  flex-shrink: 0;
+}
+
 .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .nav-btn.active {
-  background: white;
-  color: var(--primary);
-  border-color: white;
+  background: rgba(16, 185, 129, 0.14);
+}
+
+.nav-btn:focus {
+  outline: none;
+}
+
+.nav-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5);
 }
 
 .app-main {
   flex: 1;
-  padding: 2rem 1.5rem;
+  min-width: 0;
+  padding: 2rem;
   max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -93,16 +112,45 @@ body {
 }
 
 @media (max-width: 768px) {
-  .app-header {
-    padding: 1.5rem 1rem;
+  .app-container {
+    flex-direction: column;
   }
 
-  .app-header h1 {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
+  .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    height: auto;
+    padding: 0.5rem;
+    gap: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    z-index: 50;
+  }
+
+  .app-title {
+    display: none;
+  }
+
+  .nav-buttons {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .nav-btn {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
   }
 
   .app-main {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 1rem 5rem;
   }
 }

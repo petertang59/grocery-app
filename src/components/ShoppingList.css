@@ -4,10 +4,7 @@
 }
 
 .list-section {
-  background: var(--bg-card);
-  border-radius: 0.75rem;
-  padding: 2rem;
-  box-shadow: var(--shadow);
+  padding: 0;
 }
 
 .list-header {
@@ -26,17 +23,17 @@
 
 .btn-clear {
   padding: 0.75rem 1.5rem;
-  background: var(--danger);
-  color: white;
-  border: none;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
   border-radius: 0.5rem;
   cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s ease;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .btn-clear:hover {
-  background: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .empty-list {
@@ -155,7 +152,7 @@
 }
 
 .progress {
-  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
   padding: 1.5rem;
   background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
   border-radius: 0.75rem;
@@ -187,10 +184,6 @@
 @media (max-width: 768px) {
   .shopping-list {
     gap: 1.5rem;
-  }
-
-  .list-section {
-    padding: 1.5rem;
   }
 
   .list-header h2 {
