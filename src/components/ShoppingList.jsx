@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
 import { useToast } from './ToastProvider';
@@ -11,6 +11,28 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [showFixedProgress, setShowFixedProgress] = useState(false);
+  const observerRef = useRef(null);
+
+  // Callback ref: attach an IntersectionObserver to the top progress bar as
+  // soon as it mounts, so the fixed bottom bar shows only once it's scrolled
+  // out of view.
+  const setTopProgressRef = useCallback((node) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    if (node) {
+      const observer = new IntersectionObserver(
+        ([entry]) => setShowFixedProgress(!entry.isIntersecting),
+        { threshold: 0 }
+      );
+      observer.observe(node);
+      observerRef.current = observer;
+    } else {
+      setShowFixedProgress(false);
+    }
+  }, []);
 
   const toggleCategory = (category) => {
     setCollapsed((prev) => {
@@ -98,6 +120,11 @@ export default function ShoppingList({ onShoppingChanged }) {
 
   const grabbedCount = groups.filter((g) => g.checked).length;
 
+  // How many distinct meals contributed items to the list.
+  const mealCount = new Set(
+    items.map((item) => item.meals?.name).filter(Boolean)
+  ).size;
+
   const toggleGroup = async (group) => {
     const target = !group.checked;
 
@@ -122,6 +149,27 @@ export default function ShoppingList({ onShoppingChanged }) {
       console.error('Error updating item:', error);
       toast('Couldn’t update that item. Try again!', 'error');
       loadShoppingList(); // resync on failure
+    }
+  };
+
+  const removeGroup = async (group) => {
+    const idsToRemove = group.ids;
+    // Optimistically drop the item; this only touches the shopping list,
+    // never the meal's ingredient list.
+    setItems((prev) => prev.filter((item) => !idsToRemove.includes(item.id)));
+
+    try {
+      const { error } = await supabase
+        .from('shopping_list_items')
+        .delete()
+        .in('id', idsToRemove);
+
+      if (error) throw error;
+      onShoppingChanged?.();
+    } catch (error) {
+      console.error('Error removing item:', error);
+      toast('Couldn’t remove that item. Try again!', 'error');
+      loadShoppingList();
     }
   };
 
@@ -156,6 +204,12 @@ export default function ShoppingList({ onShoppingChanged }) {
           )}
         </div>
 
+        {!loading && groups.length > 0 && (
+          <p className="meals-added-count">
+            {mealCount} {mealCount === 1 ? 'meal' : 'meals'} added
+          </p>
+        )}
+
         {loading ? (
           <p className="empty-list">
             <span>Loading your list...</span>
@@ -170,7 +224,7 @@ export default function ShoppingList({ onShoppingChanged }) {
           </div>
         ) : (
           <>
-            <div className="progress">
+            <div className="progress" ref={setTopProgressRef}>
               <p className="progress-text">
                 {grabbedCount} of {groups.length} items grabbed
               </p>
@@ -231,12 +285,7 @@ export default function ShoppingList({ onShoppingChanged }) {
                         id={`item-${group.key}`}
                       />
                       <label htmlFor={`item-${group.key}`}>
-                        <span className="item-name">
-                          {group.name}
-                          {group.count > 1 && (
-                            <span className="item-count">×{group.count}</span>
-                          )}
-                        </span>
+                        <span className="item-name">{group.name}</span>
                         {group.mealList.length > 0 && (
                           <span className="item-meals-list">
                             {group.mealList.map((mealName) => (
@@ -247,12 +296,36 @@ export default function ShoppingList({ onShoppingChanged }) {
                           </span>
                         )}
                       </label>
+                      <button
+                        type="button"
+                        className="btn-remove-item"
+                        onClick={() => removeGroup(group)}
+                        aria-label={`Remove ${group.name} from the list`}
+                      >
+                        ✕
+                      </button>
                     </li>
                   ))}
                   </ul>
                 </div>
               </div>
             ))}
+
+            <div
+              className={`progress progress-fixed${
+                showFixedProgress ? ' visible' : ''
+              }`}
+            >
+              <p className="progress-text">
+                {grabbedCount} of {groups.length} items grabbed
+              </p>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
+                ></div>
+              </div>
+            </div>
           </>
         )}
       </section>

@@ -146,6 +146,10 @@ body {
     display: none;
   }
 
+  .nav-count {
+    display: none;
+  }
+
   .nav-buttons {
     flex-direction: row;
     width: 100%;

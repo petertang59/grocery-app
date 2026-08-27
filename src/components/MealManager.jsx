@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
+import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
 import { CATEGORIES, guessCategory } from '../categories';
 import './MealManager.css';
 
 const emptyIngredient = () => ({ name: '', category: '' });
+
+// Alphabetical for the picker; the shopping list keeps its aisle order.
+const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
 
 export default function MealManager({
   meals,
@@ -447,20 +451,11 @@ export default function MealManager({
                         updateIngredientName(index, e.target.value)
                       }
                     />
-                    <select
-                      className="category-select"
+                    <CategorySelect
                       value={ingredient.category || guessCategory(ingredient.name)}
-                      onChange={(e) =>
-                        updateIngredientCategory(index, e.target.value)
-                      }
-                      aria-label="Category"
-                    >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
+                      options={CATEGORY_OPTIONS}
+                      onChange={(cat) => updateIngredientCategory(index, cat)}
+                    />
                     {ingredients.length > 1 && (
                       <button
                         type="button"
