@@ -6,7 +6,7 @@ import { useTheme } from './useTheme';
 import './App.css';
 
 function App() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [view, setView] = useState('meals'); // 'meals' or 'shopping'
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,17 +149,15 @@ function App() {
           </button>
         </nav>
 
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={
-            theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-          }
-        >
-          {theme === 'dark' ? (
+        <div className="theme-toggle" role="group" aria-label="Colour theme">
+          <button
+            type="button"
+            className={`theme-option${theme === 'light' ? ' active' : ''}`}
+            onClick={() => setTheme('light')}
+            aria-label="Light mode"
+            aria-pressed={theme === 'light'}
+          >
             <svg
-              className="nav-icon"
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -173,9 +171,15 @@ function App() {
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
-          ) : (
+          </button>
+          <button
+            type="button"
+            className={`theme-option${theme === 'dark' ? ' active' : ''}`}
+            onClick={() => setTheme('dark')}
+            aria-label="Dark mode"
+            aria-pressed={theme === 'dark'}
+          >
             <svg
-              className="nav-icon"
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -188,11 +192,8 @@ function App() {
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
-          )}
-          <span className="nav-label">
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </span>
-        </button>
+          </button>
+        </div>
       </aside>
 
       <main className="app-main">

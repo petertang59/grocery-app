@@ -40,6 +40,9 @@ export function useTheme() {
     setOverride(theme === 'dark' ? 'light' : 'dark');
   }, [theme]);
 
+  // Pick a theme directly (used by the segmented toggle).
+  const setTheme = useCallback((next) => setOverride(next), []);
+
   // Persist (or clear) the override.
   useEffect(() => {
     try {
@@ -50,5 +53,5 @@ export function useTheme() {
     }
   }, [override]);
 
-  return { theme, toggleTheme };
+  return { theme, toggleTheme, setTheme };
 }
