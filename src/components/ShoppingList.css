@@ -11,6 +11,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1.5rem;
   gap: 1rem;
 }
@@ -64,6 +66,7 @@
 }
 
 .meals-added-count {
+  display: none;
   color: var(--text-light);
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
@@ -145,25 +148,59 @@
   gap: 1rem;
   padding: 8px 16px;
   margin: 16px 0;
-  background: var(--bg);
+  background: var(--item-bg);
   border-radius: 0.5rem;
   transition: all 0.2s ease;
 }
 
 .list-item:hover {
-  background: #f0fdf4;
+  background: var(--item-bg-hover);
 }
 
 .list-item.checked {
   opacity: 0.6;
-  background: #f9fafb;
+  background: var(--item-bg-checked);
 }
 
+/* Custom checkbox so it renders identically in both themes. */
 .list-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
   width: 1.25rem;
   height: 1.25rem;
+  margin: 0;
+  display: grid;
+  place-content: center;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0.35rem;
   cursor: pointer;
-  accent-color: var(--primary);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.list-item input[type="checkbox"]:hover {
+  border-color: var(--primary);
+}
+
+.list-item input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.list-item input[type="checkbox"]:checked::after {
+  content: '';
+  width: 0.3rem;
+  height: 0.6rem;
+  margin-top: -0.15rem;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.list-item input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .list-item label {
@@ -198,7 +235,7 @@
 }
 
 .btn-remove-item:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-tint);
   color: var(--danger);
 }
 
@@ -231,15 +268,20 @@
 
 .progress-fixed {
   position: fixed;
-  left: calc(240px + 2rem);
-  right: 2rem;
-  bottom: 1.5rem;
-  margin-bottom: 0;
+  left: 240px;
+  right: 0;
+  top: 0;
+  /* Full-bleed band from the sidebar to the window edge. */
+  margin: 0 auto;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
   z-index: 30;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(0.5rem);
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  transform: translateY(-100%);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.25s;
 }
 
 .progress-fixed.visible {
@@ -248,11 +290,30 @@
   transform: translateY(0);
 }
 
+/* The floating copy is a compact single-row pill. */
+.progress-fixed {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 2rem;
+}
+
+.progress-fixed .progress-text {
+  margin-bottom: 0;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.progress-fixed .progress-bar {
+  flex: 1;
+  height: 0.5rem;
+}
+
 .progress-text {
   margin-bottom: 1rem;
   color: var(--text);
   font-weight: 500;
-  font-size: 1rem;
+  font-size: 14px;
 }
 
 .progress-bar {
@@ -278,7 +339,18 @@
   .progress-fixed {
     left: 1rem;
     right: 1rem;
-    bottom: 5rem;
+    top: 1rem;
+    max-width: 80%;
+    gap: 0.75rem;
+    padding: 0.5rem 1.15rem;
+  }
+
+  .progress-fixed .progress-text {
+    font-size: 0.8rem;
+  }
+
+  .progress-fixed .progress-bar {
+    height: 0.4rem;
   }
 
   .list-header h2 {

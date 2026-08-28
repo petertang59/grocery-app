@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MealManager from './components/MealManager';
 import ShoppingList from './components/ShoppingList';
+import { useTheme } from './useTheme';
 import './App.css';
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [view, setView] = useState('meals'); // 'meals' or 'shopping'
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +100,7 @@ function App() {
           <button
             className={`nav-btn ${view === 'meals' ? 'active' : ''}`}
             onClick={() => setView('meals')}
+            aria-label="Meals"
           >
             <svg
               className="nav-icon"
@@ -116,11 +119,12 @@ function App() {
               <path d="m2.1 21.8 6.4-6.3" />
               <path d="m19 5-7 7" />
             </svg>
-            Meals
+            <span className="nav-label">Meals</span>
           </button>
           <button
             className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
             onClick={() => setView('shopping')}
+            aria-label="Shopping List"
           >
             <svg
               className="nav-icon"
@@ -138,12 +142,57 @@ function App() {
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
             </svg>
-            Shopping List
+            <span className="nav-label">Shopping List</span>
             {shoppingCount > 0 && (
               <span className="nav-count">{shoppingCount}</span>
             )}
           </button>
         </nav>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={
+            theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+          }
+        >
+          {theme === 'dark' ? (
+            <svg
+              className="nav-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+          ) : (
+            <svg
+              className="nav-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          )}
+          <span className="nav-label">
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </span>
+        </button>
       </aside>
 
       <main className="app-main">

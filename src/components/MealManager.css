@@ -6,7 +6,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -93,16 +93,24 @@
 
 .form-group input {
   padding: 0.75rem;
+  background: var(--bg-card);
+  color: var(--text);
   border: 2px solid var(--border);
   border-radius: 0.5rem;
   font-size: 1rem;
   transition: border-color 0.2s ease;
 }
 
+.form-group input::placeholder,
+.ingredient-row input::placeholder {
+  color: var(--text-light);
+  opacity: 1;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-tint);
 }
 
 .ingredient-row {
@@ -115,6 +123,8 @@
   flex: 1;
   min-width: 0;
   padding: 0.75rem;
+  background: var(--bg-card);
+  color: var(--text);
   border: 2px solid var(--border);
   border-radius: 0.5rem;
   font-size: 1rem;
@@ -123,7 +133,7 @@
 .ingredient-row input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-tint);
 }
 
 .btn-remove {
@@ -140,7 +150,7 @@
 }
 
 .btn-remove:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-tint);
   color: var(--danger);
 }
 
@@ -189,6 +199,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1.5rem;
 }
 
@@ -261,7 +273,7 @@
 
 .meal-card.in-list {
   border-color: var(--primary);
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--primary-tint);
 }
 
 .meal-card-info {
@@ -271,7 +283,7 @@
 
 .meal-card h3 {
   color: var(--text);
-  font-size: 1.15rem;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -289,7 +301,7 @@
 .ingredients-list li {
   padding: 0.5rem 0;
   color: var(--text);
-  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  border-bottom: 1px solid var(--primary-tint-strong);
   font-size: 0.95rem;
 }
 
@@ -327,14 +339,14 @@
 }
 
 .btn-shop:hover {
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--primary-tint);
 }
 
 .btn-shop:focus,
 .btn-shop:focus-visible,
 .btn-shop:active {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--primary), 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: inset 0 0 0 1px var(--primary), 0 0 0 3px var(--primary-tint-strong);
 }
 
 /* Two stacked labels that roll vertically when the meal is added/removed. */
@@ -377,8 +389,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   padding: 0;
   background: transparent;
   border: none;
@@ -392,7 +404,7 @@
 
 .btn-more:hover,
 .btn-more[aria-expanded='true'] {
-  background: rgba(16, 185, 129, 0.15);
+  background: var(--primary-tint-strong);
 }
 
 .btn-more:focus,
@@ -439,7 +451,7 @@
 }
 
 .dropdown-item.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-tint);
 }
 
 @keyframes dropdown-in {
@@ -449,15 +461,15 @@
 
 .meal-card.editing {
   border-color: var(--secondary);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 0 3px var(--secondary-ring);
 }
 
 .form-error {
   color: var(--danger);
   font-size: 0.9rem;
   font-weight: 600;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--danger-tint);
+  border: 1px solid var(--danger-border);
   border-radius: 0.5rem;
   padding: 0.65rem 0.85rem;
 }
@@ -564,12 +576,15 @@
     font-size: 1.85rem;
   }
 
+  /* Icon-only: keep the button a square. */
   .btn-shop {
     min-width: 0;
+    width: 2.5rem;
   }
 
   .btn-face {
-    padding: 0 0.6rem;
+    width: 2.5rem;
+    padding: 0;
   }
 
   .btn-label {

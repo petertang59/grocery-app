@@ -9,6 +9,7 @@
   --primary-dark: #059669;
   --secondary: #f59e0b;
   --danger: #ef4444;
+  --danger-hover: #dc2626;
   --bg: #f9fafb;
   --bg-card: #ffffff;
   --text: #1f2937;
@@ -16,6 +17,48 @@
   --border: #e5e7eb;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Tinted surfaces + overlays, so nothing is locked to one theme. */
+  --primary-tint: rgba(16, 185, 129, 0.1);
+  --primary-tint-strong: rgba(16, 185, 129, 0.15);
+  --primary-ring: rgba(16, 185, 129, 0.1);
+  --danger-tint: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --secondary-ring: rgba(245, 158, 11, 0.25);
+  --item-bg: var(--bg);
+  --item-bg-hover: #f0fdf4;
+  --item-bg-checked: #f9fafb;
+  --overlay: rgba(0, 0, 0, 0.5);
+  --count-pill: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark palette — soft charcoal. Applied when the user picks dark, or when
+   they're on "system" and the OS prefers dark. */
+:root[data-theme='dark'] {
+  --primary: #34d399;
+  --primary-dark: #6ee7b7;
+  --secondary: #fbbf24;
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --bg: #111827;
+  --bg-card: #1f2937;
+  --text: #f9fafb;
+  --text-light: #9ca3af;
+  --border: #374151;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  --primary-tint: rgba(52, 211, 153, 0.12);
+  --primary-tint-strong: rgba(52, 211, 153, 0.2);
+  --primary-ring: rgba(52, 211, 153, 0.2);
+  --danger-tint: rgba(248, 113, 113, 0.15);
+  --danger-border: rgba(248, 113, 113, 0.35);
+  --secondary-ring: rgba(251, 191, 36, 0.3);
+  --item-bg: #111827;
+  --item-bg-hover: rgba(52, 211, 153, 0.1);
+  --item-bg-checked: #161f2e;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --count-pill: rgba(255, 255, 255, 0.1);
 }
 
 body {
@@ -82,7 +125,7 @@ body {
 .nav-count {
   margin-left: auto;
   padding: 0.1rem 0.5rem;
-  background: var(--border);
+  background: var(--count-pill);
   color: var(--text-light);
   border-radius: 999px;
   font-size: 0.75rem;
@@ -105,6 +148,32 @@ body {
 .nav-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5);
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin-top: auto;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--primary-tint);
+  color: var(--text);
+}
+
+.theme-toggle:focus {
+  outline: none;
 }
 
 .app-main {
@@ -146,8 +215,28 @@ body {
     display: none;
   }
 
-  .nav-count {
+  .nav-count,
+  .nav-label {
     display: none;
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-top: 0;
+    padding: 0;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    z-index: 40;
+  }
+
+  .nav-icon {
+    width: 22px;
+    height: 22px;
   }
 
   .nav-buttons {

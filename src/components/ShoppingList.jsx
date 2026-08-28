@@ -235,6 +235,23 @@ export default function ShoppingList({ onShoppingChanged }) {
                 ></div>
               </div>
             </div>
+
+            {/* Always mounted so it can slide in and out. */}
+            <div
+              className={`progress progress-fixed${
+                showFixedProgress ? ' visible' : ''
+              }`}
+            >
+              <p className="progress-text">
+                {grabbedCount} of {groups.length} items grabbed
+              </p>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
+                ></div>
+              </div>
+            </div>
             {categorySections.map((section) => (
               <div className="category-section" key={section.category}>
                 <button
@@ -310,22 +327,6 @@ export default function ShoppingList({ onShoppingChanged }) {
                 </div>
               </div>
             ))}
-
-            <div
-              className={`progress progress-fixed${
-                showFixedProgress ? ' visible' : ''
-              }`}
-            >
-              <p className="progress-text">
-                {grabbedCount} of {groups.length} items grabbed
-              </p>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
           </>
         )}
       </section>
