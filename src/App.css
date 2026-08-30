@@ -18,6 +18,10 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
 
+  /* Solid green fills that carry white text. */
+  --primary-solid: #10b981;
+  --primary-solid-hover: #059669;
+
   /* Tinted surfaces + overlays, so nothing is locked to one theme. */
   --primary-tint: rgba(16, 185, 129, 0.1);
   --primary-tint-strong: rgba(16, 185, 129, 0.15);
@@ -48,6 +52,10 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
 
+  /* Deeper emerald: --primary is too light to sit under white text. */
+  --primary-solid: #047857;
+  --primary-solid-hover: #065f46;
+
   --primary-tint: rgba(52, 211, 153, 0.12);
   --primary-tint-strong: rgba(52, 211, 153, 0.2);
   --primary-ring: rgba(52, 211, 153, 0.2);
@@ -70,13 +78,20 @@ body {
 }
 
 .app-container {
+  --sidebar-width: 240px;
   min-height: 100vh;
   display: flex;
 }
 
+/* Icon-only rail: just the icon plus its padding. */
+.app-container.sidebar-collapsed {
+  --sidebar-width: 66px;
+}
+
 .sidebar {
   flex-shrink: 0;
-  width: 240px;
+  width: var(--sidebar-width);
+  transition: width 0.2s ease, padding 0.2s ease;
   background: var(--bg-card);
   color: var(--primary-dark);
   padding: 2rem 1.25rem;
@@ -150,19 +165,76 @@ body {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5);
 }
 
+.sidebar-collapsed .sidebar {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.sidebar-collapsed .app-title,
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .nav-count {
+  display: none;
+}
+
+.sidebar-collapsed .nav-btn {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Too narrow for a side-by-side row once collapsed. */
+.sidebar-collapsed .sidebar-footer,
+.sidebar-collapsed .theme-toggle {
+  flex-direction: column;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.625rem;
+  height: 2.625rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--primary-tint);
+  color: var(--text);
+}
+
+.sidebar-collapse-btn:focus,
+.sidebar-collapse-btn:focus-visible {
+  outline: none;
+}
+
 .theme-toggle {
   display: flex;
   gap: 0.25rem;
-  margin-top: auto;
   padding: 0.25rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 999px;
-  width: 100%;
+  /* Compact pill — same size on desktop as the floating mobile one. */
+  width: auto;
+  align-self: flex-start;
 }
 
 .theme-option {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -182,7 +254,7 @@ body {
 
 .theme-option.active {
   background: var(--bg-card);
-  color: var(--primary-dark);
+  color: var(--text);
   box-shadow: var(--shadow);
 }
 
@@ -235,20 +307,9 @@ body {
     display: none;
   }
 
+  .sidebar-collapse-btn,
   .theme-toggle {
-    position: fixed;
-    top: 0.75rem;
-    right: 0.75rem;
-    width: auto;
-    margin-top: 0;
-    background: var(--bg-card);
-    box-shadow: var(--shadow);
-    z-index: 40;
-  }
-
-  .theme-option {
-    flex: 0 0 auto;
-    width: 2rem;
+    display: none;
   }
 
   .nav-icon {

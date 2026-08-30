@@ -38,6 +38,7 @@
 .modal-header h2 {
   color: var(--text);
   font-size: 1.5rem;
+  font-weight: 500;
 }
 
 .modal-close {
@@ -86,7 +87,7 @@
 }
 
 .form-group label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   font-size: 0.95rem;
 }
@@ -162,7 +163,7 @@
   color: var(--primary-dark);
   cursor: pointer;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .btn-add-ingredient:hover {
@@ -171,18 +172,18 @@
 
 .btn-save-meal {
   padding: 0.75rem 1.25rem;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: white;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   transition: background 0.2s ease;
 }
 
 .btn-save-meal:hover:not(:disabled) {
-  background: var(--primary-dark);
+  background: var(--primary-solid-hover);
 }
 
 .btn-save-meal:disabled {
@@ -207,6 +208,7 @@
 .meals-list-section h2 {
   color: var(--text);
   font-size: 1.5rem;
+  font-weight: 500;
 }
 
 .btn-create-meal {
@@ -215,13 +217,13 @@
   justify-content: center;
   gap: 0.35rem;
   padding: 0.75rem 1.25rem;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: white;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   transition: background 0.2s ease;
 }
@@ -232,7 +234,7 @@
 }
 
 .btn-create-meal:hover {
-  background: var(--primary-dark);
+  background: var(--primary-solid-hover);
 }
 
 .btn-create-meal:focus,
@@ -492,7 +494,7 @@
   border-radius: 0.5rem;
   cursor: pointer;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -508,6 +510,10 @@
 @media (max-width: 768px) {
   .meal-manager {
     gap: 1.5rem;
+  }
+
+  .meals-list-section h2 {
+    font-size: 1.25rem;
   }
 
   .modal-overlay {

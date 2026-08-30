@@ -13,6 +13,7 @@ function App() {
   const [shoppingCount, setShoppingCount] = useState(0);
   const [shoppingMealIds, setShoppingMealIds] = useState([]);
   const [statusLoaded, setStatusLoaded] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Fetch meals on mount
   useEffect(() => {
@@ -68,7 +69,9 @@ function App() {
         )
       );
       setShoppingCount(unique.size);
-      setShoppingMealIds([...new Set(rows.map((row) => row.meal_id))]);
+      setShoppingMealIds([
+        ...new Set(rows.map((row) => row.meal_id).filter(Boolean)),
+      ]);
     }
     setStatusLoaded(true);
   };
@@ -93,7 +96,9 @@ function App() {
   };
 
   return (
-    <div className="app-container">
+    <div
+      className={`app-container${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
+    >
       <aside className="sidebar">
         <h1 className="app-title">🛒 Grocery Go</h1>
         <nav className="nav-buttons">
@@ -101,6 +106,7 @@ function App() {
             className={`nav-btn ${view === 'meals' ? 'active' : ''}`}
             onClick={() => setView('meals')}
             aria-label="Meals"
+            title={sidebarCollapsed ? 'Meals' : undefined}
           >
             <svg
               className="nav-icon"
@@ -125,6 +131,7 @@ function App() {
             className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
             onClick={() => setView('shopping')}
             aria-label="Shopping List"
+            title={sidebarCollapsed ? 'Shopping List' : undefined}
           >
             <svg
               className="nav-icon"
@@ -149,13 +156,60 @@ function App() {
           </button>
         </nav>
 
-        <div className="theme-toggle" role="group" aria-label="Colour theme">
+        <div className="sidebar-footer">
+          <div className="theme-toggle" role="group" aria-label="Colour theme">
+            <button
+              type="button"
+              className={`theme-option${theme === 'light' ? ' active' : ''}`}
+              onClick={() => setTheme('light')}
+              aria-label="Light mode"
+              aria-pressed={theme === 'light'}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`theme-option${theme === 'dark' ? ' active' : ''}`}
+              onClick={() => setTheme('dark')}
+              aria-label="Dark mode"
+              aria-pressed={theme === 'dark'}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+          </div>
+
           <button
             type="button"
-            className={`theme-option${theme === 'light' ? ' active' : ''}`}
-            onClick={() => setTheme('light')}
-            aria-label="Light mode"
-            aria-pressed={theme === 'light'}
+            className="sidebar-collapse-btn"
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg
               width="18"
@@ -168,29 +222,13 @@ function App() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className={`theme-option${theme === 'dark' ? ' active' : ''}`}
-            onClick={() => setTheme('dark')}
-            aria-label="Dark mode"
-            aria-pressed={theme === 'dark'}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+              {sidebarCollapsed ? (
+                <path d="m14 9 3 3-3 3" />
+              ) : (
+                <path d="m17 15-3-3 3-3" />
+              )}
             </svg>
           </button>
         </div>

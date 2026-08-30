@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
+import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
-import { CATEGORIES } from '../categories';
+import { CATEGORIES, guessCategory } from '../categories';
 import './ShoppingList.css';
+
+// Alphabetical for the picker; the list itself keeps its aisle order.
+const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
 
 export default function ShoppingList({ onShoppingChanged }) {
   const toast = useToast();
@@ -12,6 +16,11 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [showFixedProgress, setShowFixedProgress] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('');
+  const [addError, setAddError] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
   const observerRef = useRef(null);
 
   // Callback ref: attach an IntersectionObserver to the top progress bar as
@@ -33,6 +42,22 @@ export default function ShoppingList({ onShoppingChanged }) {
       setShowFixedProgress(false);
     }
   }, []);
+
+  // Close on Escape and lock background scroll while the modal is open.
+  useEffect(() => {
+    if (!showAddModal) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeAddModal();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [showAddModal]);
 
   const toggleCategory = (category) => {
     setCollapsed((prev) => {
@@ -87,6 +112,7 @@ export default function ShoppingList({ onShoppingChanged }) {
           key,
           name: rawName.trim(),
           ids: [],
+          manualIngredientIds: [],
           checkedCount: 0,
           meals: new Set(),
           category: item.ingredients?.category || 'Other',
@@ -96,6 +122,10 @@ export default function ShoppingList({ onShoppingChanged }) {
       group.ids.push(item.id);
       if (item.is_checked) group.checkedCount += 1;
       if (item.meals?.name) group.meals.add(item.meals.name);
+      // No meal means the ingredient row exists only for this list entry.
+      if (!item.meal_id && item.ingredient_id) {
+        group.manualIngredientIds.push(item.ingredient_id);
+      }
     }
 
     return [...map.values()]
@@ -165,6 +195,14 @@ export default function ShoppingList({ onShoppingChanged }) {
         .in('id', idsToRemove);
 
       if (error) throw error;
+
+      if (group.manualIngredientIds.length > 0) {
+        await supabase
+          .from('ingredients')
+          .delete()
+          .in('id', group.manualIngredientIds);
+      }
+
       onShoppingChanged?.();
     } catch (error) {
       console.error('Error removing item:', error);
@@ -173,8 +211,66 @@ export default function ShoppingList({ onShoppingChanged }) {
     }
   };
 
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setNewItemName('');
+    setNewItemCategory('');
+    setAddError('');
+  };
+
+  // Manually-added items get an ingredient row with no meal attached, which
+  // is what marks them as "not from a recipe" everywhere else in the app.
+  const addManualItem = async (e) => {
+    e.preventDefault();
+    const name = newItemName.trim();
+
+    if (!name) {
+      setAddError('Give the item a name first.');
+      return;
+    }
+
+    setSavingItem(true);
+    setAddError('');
+
+    try {
+      const { data: ingredient, error: ingredientError } = await supabase
+        .from('ingredients')
+        .insert({
+          name,
+          category: newItemCategory || guessCategory(name),
+          meal_id: null,
+        })
+        .select()
+        .single();
+
+      if (ingredientError) throw ingredientError;
+
+      const { error: itemError } = await supabase
+        .from('shopping_list_items')
+        .insert({
+          ingredient_id: ingredient.id,
+          meal_id: null,
+          is_checked: false,
+        });
+
+      if (itemError) throw itemError;
+
+      closeAddModal();
+      loadShoppingList();
+      onShoppingChanged?.();
+    } catch (error) {
+      console.error('Error adding item:', error);
+      setAddError('Couldn’t add that item. Try again!');
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
   const clearList = async () => {
     const ids = items.map((item) => item.id);
+    const manualIngredientIds = items
+      .filter((item) => !item.meal_id && item.ingredient_id)
+      .map((item) => item.ingredient_id);
     setItems([]); // optimistic
 
     try {
@@ -184,6 +280,11 @@ export default function ShoppingList({ onShoppingChanged }) {
         .in('id', ids);
 
       if (error) throw error;
+
+      if (manualIngredientIds.length > 0) {
+        await supabase.from('ingredients').delete().in('id', manualIngredientIds);
+      }
+
       onShoppingChanged?.();
     } catch (error) {
       console.error('Error clearing list:', error);
@@ -197,11 +298,15 @@ export default function ShoppingList({ onShoppingChanged }) {
       <section className="list-section">
         <div className="list-header">
           <h2>Shopping List</h2>
-          {groups.length > 0 && (
-            <button className="btn-clear" onClick={() => setShowClearConfirm(true)}>
-              Clear List
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-add-item"
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add Item"
+          >
+            <span className="add-plus" aria-hidden="true">+</span>
+            <span className="btn-add-label">Add Item</span>
+          </button>
         </div>
 
         {!loading && groups.length > 0 && (
@@ -225,9 +330,17 @@ export default function ShoppingList({ onShoppingChanged }) {
         ) : (
           <>
             <div className="progress" ref={setTopProgressRef}>
-              <p className="progress-text">
-                {grabbedCount} of {groups.length} items grabbed
-              </p>
+              <div className="progress-top">
+                <p className="progress-text">
+                  {grabbedCount} of {groups.length} items grabbed
+                </p>
+                <button
+                  className="btn-clear"
+                  onClick={() => setShowClearConfirm(true)}
+                >
+                  Clear List
+                </button>
+              </div>
               <div className="progress-bar">
                 <div
                   className="progress-fill"
@@ -305,6 +418,7 @@ export default function ShoppingList({ onShoppingChanged }) {
                         <span className="item-name">{group.name}</span>
                         {group.mealList.length > 0 && (
                           <span className="item-meals-list">
+                            <span className="item-for">For:</span>
                             {group.mealList.map((mealName) => (
                               <span key={mealName} className="item-meals">
                                 {mealName}
@@ -330,6 +444,80 @@ export default function ShoppingList({ onShoppingChanged }) {
           </>
         )}
       </section>
+
+      {showAddModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowAddModal(false)}
+          role="presentation"
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add an Item"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>Add an Item</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeAddModal}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={addManualItem} className="add-item-form">
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="newItemName">Item</label>
+                  <div className="ingredient-row">
+                    <input
+                      id="newItemName"
+                      type="text"
+                      placeholder="e.g., Paper towels"
+                      value={newItemName}
+                      onChange={(e) => {
+                        setNewItemName(e.target.value);
+                        if (addError) setAddError('');
+                      }}
+                      autoFocus
+                    />
+                    <CategorySelect
+                      value={newItemCategory || guessCategory(newItemName)}
+                      options={CATEGORY_OPTIONS}
+                      onChange={setNewItemCategory}
+                    />
+                  </div>
+                </div>
+
+                {addError && <p className="form-error">{addError}</p>}
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="btn-save-meal"
+                  disabled={savingItem}
+                >
+                  {savingItem ? 'Adding...' : 'Add to List'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-cancel-edit"
+                  onClick={closeAddModal}
+                  disabled={savingItem}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         open={showClearConfirm}
