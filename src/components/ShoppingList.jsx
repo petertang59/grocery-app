@@ -14,6 +14,8 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState(null);
+  const [openMenuKey, setOpenMenuKey] = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [showFixedProgress, setShowFixedProgress] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -21,6 +23,7 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [newItemCategory, setNewItemCategory] = useState('');
   const [addError, setAddError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const observerRef = useRef(null);
 
   // Callback ref: attach an IntersectionObserver to the top progress bar as
@@ -58,6 +61,22 @@ export default function ShoppingList({ onShoppingChanged }) {
       document.body.style.overflow = '';
     };
   }, [showAddModal]);
+
+  useEffect(() => {
+    if (openMenuKey === null) return;
+
+    const onDocClick = () => setOpenMenuKey(null);
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpenMenuKey(null);
+    };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [openMenuKey]);
 
   const toggleCategory = (category) => {
     setCollapsed((prev) => {
@@ -134,6 +153,9 @@ export default function ShoppingList({ onShoppingChanged }) {
         count: g.ids.length,
         checked: g.checkedCount === g.ids.length,
         mealList: [...g.meals].sort(),
+        // Only editable when every row behind it was added by hand — a merged
+        // group that also comes from a meal is owned by that meal.
+        isManual: g.manualIngredientIds.length === g.ids.length,
       }))
       // Alphabetical only — keep a stable order so checking doesn't reorder.
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -142,10 +164,15 @@ export default function ShoppingList({ onShoppingChanged }) {
   // Bucket the merged items by category, in standard aisle order.
   const categoryOrder = [...CATEGORIES];
   const categorySections = categoryOrder
-    .map((category) => ({
-      category,
-      items: groups.filter((g) => g.category === category),
-    }))
+    .map((category) => {
+      const items = groups.filter((g) => g.category === category);
+      return {
+        category,
+        items,
+        pending: items.filter((g) => !g.checked),
+        grabbed: items.filter((g) => g.checked),
+      };
+    })
     .filter((section) => section.items.length > 0);
 
   const grabbedCount = groups.filter((g) => g.checked).length;
@@ -211,8 +238,96 @@ export default function ShoppingList({ onShoppingChanged }) {
     }
   };
 
+  const renderItem = (group) => (
+    <li
+      key={group.key}
+      className={`list-item ${group.checked ? 'checked' : ''}`}
+    >
+      <input
+        type="checkbox"
+        checked={group.checked}
+        onChange={() => toggleGroup(group)}
+        id={`item-${group.key}`}
+        aria-label={group.name}
+      />
+      {/* Not a <label>: only the checkbox itself should toggle the item. */}
+      <div className="item-body">
+        <span className="item-name">{group.name}</span>
+        {group.mealList.length > 0 && (
+          <span className="item-meals-list">
+            <span className="item-for">For:</span>
+            {group.mealList.map((mealName) => (
+              <span key={mealName} className="item-meals">
+                {mealName}
+              </span>
+            ))}
+          </span>
+        )}
+      </div>
+      <div className="item-menu" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="btn-more"
+          aria-label={`More options for ${group.name}`}
+          aria-haspopup="true"
+          aria-expanded={openMenuKey === group.key}
+          onClick={() =>
+            setOpenMenuKey(openMenuKey === group.key ? null : group.key)
+          }
+        >
+          ⋮
+        </button>
+        {openMenuKey === group.key && (
+          <div className="dropdown-menu" role="menu">
+            {group.isManual && (
+              <button
+                type="button"
+                role="menuitem"
+                className="dropdown-item"
+                onClick={() => {
+                  setOpenMenuKey(null);
+                  openEditModal(group);
+                }}
+              >
+                Edit item
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className="dropdown-item danger"
+              onClick={() => {
+                setOpenMenuKey(null);
+                setPendingRemove(group);
+              }}
+            >
+              Remove item
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+
+  const openAddModal = () => {
+    setEditingItem(null);
+    setNewItemName('');
+    setNewItemCategory('');
+    setAddError('');
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (group) => {
+    setEditingItem(group);
+    setNewItemName(group.name);
+    setNewItemCategory(group.category);
+    setAddError('');
+    setShowAddModal(true);
+  };
+
   const closeAddModal = () => {
     setShowAddModal(false);
+    setEditingItem(null);
     setNewItemName('');
     setNewItemCategory('');
     setAddError('');
@@ -231,6 +346,30 @@ export default function ShoppingList({ onShoppingChanged }) {
 
     setSavingItem(true);
     setAddError('');
+
+    if (editingItem) {
+      try {
+        const { error } = await supabase
+          .from('ingredients')
+          .update({
+            name,
+            category: newItemCategory || guessCategory(name),
+          })
+          .in('id', editingItem.manualIngredientIds);
+
+        if (error) throw error;
+
+        closeAddModal();
+        loadShoppingList();
+        onShoppingChanged?.();
+      } catch (error) {
+        console.error('Error updating item:', error);
+        setAddError('Couldn’t save those changes. Try again!');
+      } finally {
+        setSavingItem(false);
+      }
+      return;
+    }
 
     try {
       const { data: ingredient, error: ingredientError } = await supabase
@@ -301,7 +440,7 @@ export default function ShoppingList({ onShoppingChanged }) {
           <button
             type="button"
             className="btn-add-item"
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             aria-label="Add Item"
           >
             <span className="add-plus" aria-hidden="true">+</span>
@@ -378,8 +517,7 @@ export default function ShoppingList({ onShoppingChanged }) {
                   <span className="category-title">
                     {section.category}{' '}
                     <span className="category-count">
-                      ({section.items.filter((g) => g.checked).length}/
-                      {section.items.length})
+                      ({section.pending.length} remaining)
                     </span>
                   </span>
                   <svg
@@ -400,44 +538,33 @@ export default function ShoppingList({ onShoppingChanged }) {
                 <div
                   className={`category-body${
                     collapsed.has(section.category) ? ' collapsed' : ''
+                  }${
+                    section.items.some((g) => g.key === openMenuKey)
+                      ? ' menu-open'
+                      : ''
                   }`}
                 >
-                  <ul className="items-list">
-                    {section.items.map((group) => (
-                    <li
-                      key={group.key}
-                      className={`list-item ${group.checked ? 'checked' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={group.checked}
-                        onChange={() => toggleGroup(group)}
-                        id={`item-${group.key}`}
-                      />
-                      <label htmlFor={`item-${group.key}`}>
-                        <span className="item-name">{group.name}</span>
-                        {group.mealList.length > 0 && (
-                          <span className="item-meals-list">
-                            <span className="item-for">For:</span>
-                            {group.mealList.map((mealName) => (
-                              <span key={mealName} className="item-meals">
-                                {mealName}
-                              </span>
-                            ))}
+                  <div className="category-body-inner">
+                    {section.pending.length > 0 && (
+                      <ul className="items-list">
+                        {section.pending.map(renderItem)}
+                      </ul>
+                    )}
+
+                    {section.grabbed.length > 0 && (
+                      <div className="grabbed-section">
+                        <p className="grabbed-heading">
+                          Grabbed
+                          <span className="grabbed-count">
+                            ({section.grabbed.length})
                           </span>
-                        )}
-                      </label>
-                      <button
-                        type="button"
-                        className="btn-remove-item"
-                        onClick={() => removeGroup(group)}
-                        aria-label={`Remove ${group.name} from the list`}
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                  </ul>
+                        </p>
+                        <ul className="items-list">
+                          {section.grabbed.map(renderItem)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -455,11 +582,11 @@ export default function ShoppingList({ onShoppingChanged }) {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Add an Item"
+            aria-label={editingItem ? 'Edit item' : 'Add an Item'}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>Add an Item</h2>
+              <h2>{editingItem ? 'Edit item' : 'Add an Item'}</h2>
               <button
                 type="button"
                 className="modal-close"
@@ -503,7 +630,11 @@ export default function ShoppingList({ onShoppingChanged }) {
                   className="btn-save-meal"
                   disabled={savingItem}
                 >
-                  {savingItem ? 'Adding...' : 'Add to List'}
+                  {savingItem
+                    ? 'Saving...'
+                    : editingItem
+                    ? 'Save changes'
+                    : 'Add to List'}
                 </button>
                 <button
                   type="button"
@@ -518,6 +649,22 @@ export default function ShoppingList({ onShoppingChanged }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!pendingRemove}
+        title={
+          pendingRemove ? `Remove ${pendingRemove.name}?` : 'Remove item?'
+        }
+        message="This takes it off your shopping list. It won't change any of your saved meals."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={() => {
+          removeGroup(pendingRemove);
+          setPendingRemove(null);
+        }}
+        onCancel={() => setPendingRemove(null)}
+      />
 
       <ConfirmModal
         open={showClearConfirm}

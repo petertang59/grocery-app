@@ -189,12 +189,12 @@ body {
 }
 
 /* Too narrow for a side-by-side row once collapsed. */
-.sidebar-collapsed .sidebar-footer,
-.sidebar-collapsed .theme-toggle {
+.sidebar-collapsed .sidebar-footer {
   flex-direction: column;
 }
 
-.sidebar-collapse-btn {
+.sidebar-collapse-btn,
+.theme-toggle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,56 +210,16 @@ body {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.sidebar-collapse-btn:hover {
+.sidebar-collapse-btn:hover,
+.theme-toggle-btn:hover {
   background: var(--primary-tint);
   color: var(--text);
 }
 
 .sidebar-collapse-btn:focus,
-.sidebar-collapse-btn:focus-visible {
-  outline: none;
-}
-
-.theme-toggle {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  /* Compact pill — same size on desktop as the floating mobile one. */
-  width: auto;
-  align-self: flex-start;
-}
-
-.theme-option {
-  flex: 0 0 auto;
-  width: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 2rem;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-light);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.theme-option:hover {
-  color: var(--text);
-}
-
-.theme-option.active {
-  background: var(--bg-card);
-  color: var(--text);
-  box-shadow: var(--shadow);
-}
-
-.theme-option:focus,
-.theme-option:focus-visible {
+.sidebar-collapse-btn:focus-visible,
+.theme-toggle-btn:focus,
+.theme-toggle-btn:focus-visible {
   outline: none;
 }
 
@@ -308,7 +268,7 @@ body {
   }
 
   .sidebar-collapse-btn,
-  .theme-toggle {
+  .theme-toggle-btn {
     display: none;
   }
 
