@@ -414,16 +414,16 @@
   }
 
   .progress-fixed {
-    left: 1rem;
-    right: 1rem;
-    top: 1rem;
-    max-width: 80%;
-    gap: 0.75rem;
-    padding: 0.5rem 1.15rem;
+    left: 0;
+    right: 0;
+    top: 0;
+    max-width: none;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
   }
 
   .progress-fixed .progress-text {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
 
   .progress-fixed .progress-bar {
@@ -452,7 +452,7 @@
     width: 3.5rem;
     height: 3.5rem;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 8px;
     box-shadow: var(--shadow-lg);
     z-index: 45;
   }
@@ -462,6 +462,7 @@
   }
 
   .add-plus {
-    font-size: 1.85rem;
+    /* 1.5rem renders the glyph at roughly 12x12. */
+    font-size: 1.5rem;
   }
 }

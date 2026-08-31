@@ -569,7 +569,7 @@
     width: 3.5rem;
     height: 3.5rem;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 8px;
     box-shadow: var(--shadow-lg);
     z-index: 45;
   }
@@ -579,7 +579,8 @@
   }
 
   .create-plus {
-    font-size: 1.85rem;
+    /* 1.5rem renders the glyph at roughly 12x12. */
+    font-size: 1.5rem;
   }
 
   /* Icon-only: keep the button a square. */
