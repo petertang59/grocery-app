@@ -251,7 +251,9 @@ body {
     top: auto;
     width: 100%;
     height: auto;
-    padding: 0.5rem;
+    /* Extra room below the icons so the iOS home indicator doesn't sit on
+       top of the tap targets. env() is 0 where there's no inset. */
+    padding: 0.5rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
     gap: 0;
     border-right: none;
     border-top: 1px solid var(--border);
@@ -293,6 +295,6 @@ body {
   }
 
   .app-main {
-    padding: 1.5rem 1rem 5rem;
+    padding: 1.5rem 1rem calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 }

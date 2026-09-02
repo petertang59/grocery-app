@@ -25,7 +25,6 @@
 }
 
 .category-trigger.open,
-.category-trigger:focus,
 .category-trigger:focus-visible {
   outline: none;
   border-color: var(--primary);
@@ -90,7 +89,6 @@
   background: var(--bg);
 }
 
-.category-option:focus,
 .category-option:focus-visible {
   outline: none;
   background: var(--bg);

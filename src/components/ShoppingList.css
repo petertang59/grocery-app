@@ -445,16 +445,11 @@
     gap: 0;
   }
 
+  /* Icon-only square in the header — no room for the label. */
   .btn-add-item {
-    position: fixed;
-    right: 1.25rem;
-    bottom: 5rem;
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 2.625rem;
+    height: 2.625rem;
     padding: 0;
-    border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-    z-index: 45;
   }
 
   .btn-add-label {
@@ -462,7 +457,6 @@
   }
 
   .add-plus {
-    /* 1.5rem renders the glyph at roughly 12x12. */
     font-size: 1.5rem;
   }
 }

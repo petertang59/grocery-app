@@ -288,13 +288,6 @@ export default function MealManager({
                   shoppingMealIds.includes(meal.id) ? ' in-list' : ''
                 }${editingMealId === meal.id ? ' editing' : ''}`}
               >
-                <div className="meal-card-info">
-                  <h3>{meal.name}</h3>
-                  <p className="ingredient-count">
-                    {meal.ingredients.length}{' '}
-                    {meal.ingredients.length === 1 ? 'ingredient' : 'ingredients'}
-                  </p>
-                </div>
                 <button
                   className={`btn-shop${
                     shoppingMealIds.includes(meal.id) ? ' in-list' : ''
@@ -328,11 +321,10 @@ export default function MealManager({
                         <circle cx="20" cy="21" r="1" />
                         <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                       </svg>
-                      <span className="btn-label">In shopping list</span>
                     </span>
                     <span className="btn-face">
                       <svg
-                        className="btn-icon icon-mobile-only"
+                        className="btn-icon"
                         width="16"
                         height="16"
                         viewBox="0 0 24 24"
@@ -346,10 +338,16 @@ export default function MealManager({
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                       </svg>
-                      <span className="btn-label">Add to shopping list</span>
                     </span>
                   </span>
                 </button>
+                <div className="meal-card-info">
+                  <h3>{meal.name}</h3>
+                  <p className="ingredient-count">
+                    {meal.ingredients.length}{' '}
+                    {meal.ingredients.length === 1 ? 'ingredient' : 'ingredients'}
+                  </p>
+                </div>
                 <div
                   className="meal-card-menu"
                   onClick={(e) => e.stopPropagation()}
