@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MealManager from './components/MealManager';
 import ShoppingList from './components/ShoppingList';
+import Groceries from './components/Groceries';
 import { useTheme } from './useTheme';
 import './App.css';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
-  const [view, setView] = useState('meals'); // 'meals' or 'shopping'
+  const [view, setView] = useState('meals'); // 'meals' | 'groceries' | 'shopping'
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shoppingCount, setShoppingCount] = useState(0);
@@ -128,10 +129,10 @@ function App() {
             <span className="nav-label">Meals</span>
           </button>
           <button
-            className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
-            onClick={() => setView('shopping')}
-            aria-label="Shopping List"
-            title={sidebarCollapsed ? 'Shopping List' : undefined}
+            className={`nav-btn ${view === 'groceries' ? 'active' : ''}`}
+            onClick={() => setView('groceries')}
+            aria-label="Groceries"
+            title={sidebarCollapsed ? 'Groceries' : undefined}
           >
             <svg
               className="nav-icon"
@@ -145,10 +146,42 @@ function App() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <circle cx="9" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
             </svg>
+            <span className="nav-label">Groceries</span>
+          </button>
+          <button
+            className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
+            onClick={() => setView('shopping')}
+            aria-label="Shopping List"
+            title={sidebarCollapsed ? 'Shopping List' : undefined}
+          >
+            <span className="nav-icon-wrap">
+              <svg
+                className="nav-icon"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              {shoppingCount > 0 && (
+                <span className="nav-dot" aria-hidden="true" />
+              )}
+            </span>
             <span className="nav-label">Shopping List</span>
             {shoppingCount > 0 && (
               <span className="nav-count">{shoppingCount}</span>
@@ -237,6 +270,7 @@ function App() {
                 onShoppingChanged={loadShoppingStatus}
               />
             )}
+            {view === 'groceries' && <Groceries />}
             {view === 'shopping' && (
               <ShoppingList onShoppingChanged={loadShoppingStatus} />
             )}

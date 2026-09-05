@@ -229,6 +229,10 @@
 }
 
 .create-plus {
+  position: relative;
+  /* The "+" glyph's ink sits below its em box centre, so nudge it back up to
+     match the label's optical centre. In em so it scales with the font size. */
+  top: -0.09em;
   font-size: 1.1rem;
   line-height: 1;
 }
@@ -249,9 +253,61 @@
   font-size: 1.05rem;
 }
 
+.meals-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-card);
+  color: var(--text);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+}
+
+.meals-progress-icon {
+  flex-shrink: 0;
+}
+
+/* Low-emphasis, matching the shopping list's own Clear List. */
+.btn-clear-meals {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.35rem 0.6rem;
+  background: transparent;
+  color: var(--text-light);
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-clear-meals:hover:not(:disabled) {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+.btn-clear-meals:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-clear-meals:focus,
+.btn-clear-meals:focus-visible {
+  outline: none;
+}
+
+.meals-progress-text {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 14px;
+}
+
 .meals-count {
   color: var(--text-light);
-  font-size: 0.9rem;
+  font-size: 16px;
   margin-bottom: 24px;
 }
 
@@ -318,11 +374,13 @@
   margin-right: 0.5rem;
 }
 
-/* Icon-only square, leading the row ahead of the meal name. */
+/* Icon-only square, leading the row ahead of the meal name. Grey until the
+   meal is on the list, then green. */
 .btn-shop {
   flex: 0 0 auto;
-  position: relative;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
@@ -330,12 +388,13 @@
   border-radius: 0.375rem;
   cursor: pointer;
   background: transparent;
-  color: var(--primary-dark);
+  color: var(--text-light);
   box-shadow: inset 0 0 0 1px var(--border);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
 .btn-shop.in-list {
+  color: var(--primary-dark);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 
@@ -348,27 +407,6 @@
 .btn-shop:active {
   outline: none;
   box-shadow: inset 0 0 0 1px var(--primary), 0 0 0 3px var(--primary-tint-strong);
-}
-
-/* Two stacked icons that roll vertically when the meal is added/removed. */
-.btn-roller {
-  display: flex;
-  flex-direction: column;
-  transform: translateY(-2.5rem); /* default: show the second face ("Add") */
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.btn-shop.in-list .btn-roller {
-  transform: translateY(0); /* show the first face ("In shopping list") */
-}
-
-.btn-face {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
 }
 
 .btn-icon {

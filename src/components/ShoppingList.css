@@ -68,6 +68,10 @@
 }
 
 .add-plus {
+  position: relative;
+  /* The "+" glyph's ink sits below its em box centre, so nudge it back up to
+     match the label's optical centre. In em so it scales with the font size. */
+  top: -0.09em;
   font-size: 1.1rem;
   line-height: 1;
 }
@@ -287,7 +291,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text);
 }
 
@@ -437,6 +441,14 @@
   .list-header {
     flex-direction: row;
     align-items: center;
+  }
+
+  /* Stack the name over its pills so every row is the same height, rather
+     than only the ones long enough to wrap. */
+  .list-item .item-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
   }
 
   .add-item-form {

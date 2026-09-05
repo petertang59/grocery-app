@@ -4,6 +4,7 @@ import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
 import { CATEGORIES, guessCategory } from '../categories';
+import { resolveGroceryItems, groceryKey } from '../groceryItems';
 import './MealManager.css';
 
 const emptyIngredient = () => ({ name: '', category: '' });
@@ -25,11 +26,15 @@ export default function MealManager({
   const [editingMealId, setEditingMealId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [formError, setFormError] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const isEditing = editingMealId !== null;
   const pendingDeleteMeal = meals.find((m) => m.id === pendingDeleteId);
+  // Count against the meals we actually render, so a stale id can't push the
+  // total past the number of cards on screen.
+  const addedCount = meals.filter((m) => shoppingMealIds.includes(m.id)).length;
 
   const addMealToList = async (meal) => {
     if (meal.ingredients.length === 0) {
@@ -73,6 +78,31 @@ export default function MealManager({
       console.error('Error removing meal from shopping list:', error);
       toast('Failed to remove meal from the shopping list. Try again!', 'error');
       setShoppingMealIds((prev) => [...new Set([...prev, meal.id])]);
+    }
+  };
+
+  // Takes every meal off the shopping list in one go. Hand-added items aren't
+  // tied to a meal, so they're left alone.
+  const clearMealsFromList = async () => {
+    const idsToClear = meals
+      .filter((m) => shoppingMealIds.includes(m.id))
+      .map((m) => m.id);
+    if (idsToClear.length === 0) return;
+
+    setShoppingMealIds((prev) => prev.filter((id) => !idsToClear.includes(id)));
+
+    try {
+      const { error } = await supabase
+        .from('shopping_list_items')
+        .delete()
+        .in('meal_id', idsToClear);
+
+      if (error) throw error;
+      onShoppingChanged?.();
+    } catch (error) {
+      console.error('Error clearing meals from shopping list:', error);
+      toast('Failed to clear the shopping list. Try again!', 'error');
+      setShoppingMealIds((prev) => [...new Set([...prev, ...idsToClear])]);
     }
   };
 
@@ -179,6 +209,14 @@ export default function MealManager({
         }))
         .filter(ing => ing.name);
 
+      // Point each ingredient at the shared catalogue, creating entries for
+      // names that haven't been used before.
+      const catalogue = await resolveGroceryItems(ingredientRows);
+      const withItemId = ingredientRows.map((row) => ({
+        ...row,
+        grocery_item_id: catalogue.get(groceryKey(row.name)),
+      }));
+
       if (isEditing) {
         // Update the meal name.
         const { error: mealError } = await supabase
@@ -199,7 +237,7 @@ export default function MealManager({
         const { error: ingError } = await supabase
           .from('ingredients')
           .insert(
-            ingredientRows.map((row) => ({ meal_id: editingMealId, ...row }))
+            withItemId.map((row) => ({ meal_id: editingMealId, ...row }))
           );
 
         if (ingError) throw ingError;
@@ -217,7 +255,7 @@ export default function MealManager({
         const { error: ingError } = await supabase
           .from('ingredients')
           .insert(
-            ingredientRows.map((row) => ({ meal_id: mealData.id, ...row }))
+            withItemId.map((row) => ({ meal_id: mealData.id, ...row }))
           );
 
         if (ingError) throw ingError;
@@ -277,6 +315,37 @@ export default function MealManager({
           </p>
         ) : (
           <>
+            <div className="meals-progress">
+              <svg
+                className="meals-progress-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              <p className="meals-progress-text">
+                {addedCount} {addedCount === 1 ? 'meal' : 'meals'} in shopping
+                list
+              </p>
+              <button
+                type="button"
+                className="btn-clear-meals"
+                onClick={() => setShowClearConfirm(true)}
+                disabled={addedCount === 0}
+              >
+                Clear List
+              </button>
+            </div>
+
             <p className="meals-count">
               Showing {meals.length} {meals.length === 1 ? 'meal' : 'meals'}
             </p>
@@ -303,43 +372,22 @@ export default function MealManager({
                       : 'Add to shopping list'
                   }
                 >
-                  <span className="btn-roller">
-                    <span className="btn-face">
-                      <svg
-                        className="btn-icon"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <circle cx="9" cy="21" r="1" />
-                        <circle cx="20" cy="21" r="1" />
-                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                      </svg>
-                    </span>
-                    <span className="btn-face">
-                      <svg
-                        className="btn-icon"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </span>
-                  </span>
+                  <svg
+                    className="btn-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="9" cy="21" r="1" />
+                    <circle cx="20" cy="21" r="1" />
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                  </svg>
                 </button>
                 <div className="meal-card-info">
                   <h3>{meal.name}</h3>
@@ -520,6 +568,22 @@ export default function MealManager({
           setPendingDeleteId(null);
         }}
         onCancel={() => setPendingDeleteId(null)}
+      />
+
+      <ConfirmModal
+        open={showClearConfirm}
+        title="Clear shopping list?"
+        message={`This takes ${
+          addedCount === 1 ? 'that meal' : `all ${addedCount} meals`
+        } off your shopping list. Items you added by hand stay put.`}
+        confirmLabel="Clear List"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={() => {
+          clearMealsFromList();
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
       />
     </div>
   );

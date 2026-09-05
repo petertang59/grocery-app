@@ -4,6 +4,7 @@ import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
 import { CATEGORIES, guessCategory } from '../categories';
+import { resolveGroceryItems, groceryKey } from '../groceryItems';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
@@ -109,7 +110,9 @@ export default function ShoppingList({ onShoppingChanged }) {
     try {
       const { data, error } = await supabase
         .from('shopping_list_items')
-        .select('*, ingredients(name, category), meals(name)');
+        .select(
+          '*, ingredients(name, category, grocery_item_id, grocery_items(id, name, category)), meals(name)'
+        );
 
       if (error) throw error;
       setItems(data || []);
@@ -120,21 +123,27 @@ export default function ShoppingList({ onShoppingChanged }) {
     }
   };
 
-  // Merge items that share an ingredient name into a single line.
+  // Merge items that refer to the same catalogue entry into a single line.
   const groups = (() => {
     const map = new Map();
     for (const item of items) {
-      const rawName = item.ingredients?.name ?? 'Unknown item';
-      const key = rawName.trim().toLowerCase();
+      const catalogueItem = item.ingredients?.grocery_items ?? null;
+      const rawName = catalogueItem?.name ?? item.ingredients?.name ?? 'Unknown item';
+      // Fall back to the name until every row has been linked to the catalogue.
+      const key = catalogueItem
+        ? `item-${catalogueItem.id}`
+        : rawName.trim().toLowerCase();
       if (!map.has(key)) {
         map.set(key, {
           key,
           name: rawName.trim(),
+          groceryItemId: catalogueItem?.id ?? null,
           ids: [],
           manualIngredientIds: [],
           checkedCount: 0,
           meals: new Set(),
-          category: item.ingredients?.category || 'Other',
+          category:
+            catalogueItem?.category || item.ingredients?.category || 'Other',
         });
       }
       const group = map.get(key);
@@ -349,11 +358,15 @@ export default function ShoppingList({ onShoppingChanged }) {
 
     if (editingItem) {
       try {
+        const category = newItemCategory || guessCategory(name);
+        const catalogue = await resolveGroceryItems([{ name, category }]);
+
         const { error } = await supabase
           .from('ingredients')
           .update({
             name,
-            category: newItemCategory || guessCategory(name),
+            category,
+            grocery_item_id: catalogue.get(groceryKey(name)),
           })
           .in('id', editingItem.manualIngredientIds);
 
@@ -372,12 +385,16 @@ export default function ShoppingList({ onShoppingChanged }) {
     }
 
     try {
+      const category = newItemCategory || guessCategory(name);
+      const catalogue = await resolveGroceryItems([{ name, category }]);
+
       const { data: ingredient, error: ingredientError } = await supabase
         .from('ingredients')
         .insert({
           name,
-          category: newItemCategory || guessCategory(name),
+          category,
           meal_id: null,
+          grocery_item_id: catalogue.get(groceryKey(name)),
         })
         .select()
         .single();

@@ -137,6 +137,26 @@ body {
   flex-shrink: 0;
 }
 
+.nav-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* Stands in for the count badge, which is hidden on mobile. */
+.nav-dot {
+  display: none;
+  position: absolute;
+  /* Sits low enough to just clip the cart's top-right corner. */
+  top: -1px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  background: var(--primary);
+  border: 2px solid var(--bg-card);
+  border-radius: 50%;
+}
+
 .nav-count {
   margin-left: auto;
   padding: 0.1rem 0.5rem;
@@ -277,6 +297,10 @@ body {
   .nav-icon {
     width: 22px;
     height: 22px;
+  }
+
+  .nav-dot {
+    display: block;
   }
 
   .nav-buttons {
