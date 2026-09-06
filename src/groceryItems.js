@@ -42,3 +42,60 @@ export async function resolveGroceryItems(entries) {
 
   return byKey;
 }
+
+// name_key -> array of store names, for showing an item's current stores
+// before anything has been edited.
+export async function fetchCatalogueStores() {
+  const { data, error } = await supabase
+    .from('grocery_items')
+    .select('name_key, grocery_item_stores(stores(name))');
+
+  if (error) throw error;
+
+  return new Map(
+    (data || []).map((item) => [
+      item.name_key,
+      (item.grocery_item_stores || [])
+        .map((link) => link.stores?.name)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    ])
+  );
+}
+
+// Brings one item's store links in line with `storeIds`, touching only what
+// actually changed so unrelated links are left alone.
+export async function syncGroceryItemStores(itemId, storeIds) {
+  const { data: existing, error } = await supabase
+    .from('grocery_item_stores')
+    .select('store_id')
+    .eq('grocery_item_id', itemId);
+
+  if (error) throw error;
+
+  const have = new Set((existing || []).map((row) => row.store_id));
+  const want = new Set(storeIds);
+  const toRemove = [...have].filter((id) => !want.has(id));
+  const toAdd = [...want].filter((id) => !have.has(id));
+
+  if (toRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('grocery_item_stores')
+      .delete()
+      .eq('grocery_item_id', itemId)
+      .in('store_id', toRemove);
+    if (deleteError) throw deleteError;
+  }
+
+  if (toAdd.length > 0) {
+    const { error: insertError } = await supabase
+      .from('grocery_item_stores')
+      .insert(
+        toAdd.map((storeId) => ({
+          grocery_item_id: itemId,
+          store_id: storeId,
+        }))
+      );
+    if (insertError) throw insertError;
+  }
+}

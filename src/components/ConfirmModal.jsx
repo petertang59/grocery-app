@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import ModalHeader from './ModalHeader';
 import './ConfirmModal.css';
 
 export default function ConfirmModal({
@@ -38,7 +39,7 @@ export default function ConfirmModal({
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="confirm-title">{title}</h2>
+        <ModalHeader title={title} />
         {message && <p className="confirm-message">{message}</p>}
         <div className="confirm-actions">
           <button

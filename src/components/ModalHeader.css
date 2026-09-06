@@ -1,0 +1,37 @@
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.modal-close:focus,
+.modal-close:focus-visible {
+  outline: none;
+}

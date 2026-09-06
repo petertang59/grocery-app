@@ -28,6 +28,49 @@
   margin: 0;
 }
 
+/* Mirrors .btn-create-meal and .btn-add-item on the other pages. */
+.btn-create-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary-solid);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.create-item-plus {
+  position: relative;
+  /* Matches the other "+" buttons: the glyph's ink sits below its em box. */
+  top: -0.09em;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.btn-create-item:hover {
+  background: var(--primary-solid-hover);
+}
+
+.btn-create-item:focus,
+.btn-create-item:focus-visible {
+  outline: none;
+}
+
+/* Mirrors .meal-form so the shared modal chrome lays out the same way. */
+.grocery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .groceries-count {
   color: var(--text-light);
   font-size: 16px;
@@ -138,35 +181,44 @@
   white-space: nowrap;
 }
 
-.col-category,
 .col-meals {
   color: var(--text-light);
   white-space: nowrap;
 }
 
-.cell-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.cell-pill {
-  padding: 0.15rem 0.6rem;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px;
+/* The editable cells sit flush with the plain ones despite the trigger's
+   own padding. */
+.col-category,
+.col-stores {
   color: var(--text-light);
   white-space: nowrap;
 }
 
-.cell-empty {
-  color: var(--text-light);
-}
 
 @media (max-width: 768px) {
   .groceries {
     gap: 1.5rem;
+  }
+
+  .grocery-form {
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+  }
+
+  /* Icon-only square in the header — no room for the label. */
+  .btn-create-item {
+    width: 2.625rem;
+    height: 2.625rem;
+    padding: 0;
+  }
+
+  .btn-create-item-label {
+    display: none;
+  }
+
+  .create-item-plus {
+    font-size: 1.5rem;
   }
 
   .groceries-header h2 {

@@ -20,13 +20,6 @@
   animation: confirm-modal-in 0.15s ease;
 }
 
-.confirm-title {
-  color: var(--text);
-  font-size: 1.35rem;
-  font-weight: 500;
-  margin-bottom: 0.75rem;
-}
-
 .confirm-message {
   color: var(--text-light);
   font-size: 1rem;

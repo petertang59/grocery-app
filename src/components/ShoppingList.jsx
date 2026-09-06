@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
+import ModalHeader from './ModalHeader';
 import { useToast } from './ToastProvider';
 import { CATEGORIES, guessCategory } from '../categories';
 import { resolveGroceryItems, groceryKey } from '../groceryItems';
@@ -602,17 +603,10 @@ export default function ShoppingList({ onShoppingChanged }) {
             aria-label={editingItem ? 'Edit item' : 'Add an Item'}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <h2>{editingItem ? 'Edit item' : 'Add an Item'}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeAddModal}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+            <ModalHeader
+              title={editingItem ? 'Edit item' : 'Add an Item'}
+              onClose={closeAddModal}
+            />
 
             <form onSubmit={addManualItem} className="add-item-form">
               <div className="modal-body">

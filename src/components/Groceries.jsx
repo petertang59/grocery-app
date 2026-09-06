@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import CategorySelect from './CategorySelect';
+import StoreSelect from './StoreSelect';
+import { useToast } from './ToastProvider';
+import ModalHeader from './ModalHeader';
+import { CATEGORIES, guessCategory } from '../categories';
+import { groceryKey } from '../groceryItems';
 import './Groceries.css';
+
+const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
 
 const COLUMNS = [
   { key: 'name', label: 'Name', numeric: false },
@@ -10,14 +18,121 @@ const COLUMNS = [
 ];
 
 export default function Groceries() {
+  const toast = useToast();
   const [items, setItems] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [newStores, setNewStores] = useState([]);
+  const [createError, setCreateError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadItems();
+    loadStores();
   }, []);
+
+  // Close on Escape and lock background scroll while the modal is open.
+  useEffect(() => {
+    if (!showCreate) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeCreate();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [showCreate]);
+
+  const openCreate = () => {
+    setNewName('');
+    setNewCategory('');
+    setNewStores([]);
+    setCreateError('');
+    setShowCreate(true);
+  };
+
+  const closeCreate = () => {
+    if (saving) return;
+    setShowCreate(false);
+  };
+
+  const toggleNewStore = (storeName) => {
+    setNewStores((prev) =>
+      prev.includes(storeName)
+        ? prev.filter((name) => name !== storeName)
+        : [...prev, storeName]
+    );
+  };
+
+  const createItem = async (e) => {
+    e.preventDefault();
+    const name = newName.trim();
+
+    if (!name) {
+      setCreateError('Give the item a name first.');
+      return;
+    }
+    // The catalogue is one row per real item, so a repeat name is a mistake
+    // rather than something to silently merge.
+    if (items.some((item) => groceryKey(item.name) === groceryKey(name))) {
+      setCreateError(`“${name}” is already in your groceries.`);
+      return;
+    }
+
+    setSaving(true);
+    setCreateError('');
+
+    try {
+      const { data: created, error } = await supabase
+        .from('grocery_items')
+        .insert({ name, category: newCategory || guessCategory(name) })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const links = newStores
+        .map((storeName) => stores.find((s) => s.name === storeName)?.id)
+        .filter(Boolean)
+        .map((storeId) => ({ grocery_item_id: created.id, store_id: storeId }));
+
+      if (links.length > 0) {
+        const { error: linkError } = await supabase
+          .from('grocery_item_stores')
+          .insert(links);
+        if (linkError) throw linkError;
+      }
+
+      setShowCreate(false);
+      loadItems();
+    } catch (error) {
+      console.error('Error creating grocery item:', error);
+      setCreateError('Couldn’t create that item. Try again!');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadStores = async () => {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id, name')
+      .order('name');
+    if (error) {
+      console.error('Error loading stores:', error);
+      return;
+    }
+    setStores(data || []);
+  };
 
   const loadItems = async () => {
     try {
@@ -55,6 +170,72 @@ export default function Groceries() {
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b)),
   }));
+
+  const changeCategory = async (itemId, category) => {
+    const previous = items;
+    setItems((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, category } : item))
+    );
+
+    const { error } = await supabase
+      .from('grocery_items')
+      .update({ category })
+      .eq('id', itemId);
+
+    if (error) {
+      console.error('Error updating category:', error);
+      toast('Couldn’t change that category. Try again!', 'error');
+      setItems(previous);
+    }
+  };
+
+  // An item can be stocked at several stores, so each one toggles on its own.
+  const toggleStore = async (itemId, storeName) => {
+    const store = stores.find((s) => s.name === storeName);
+    if (!store) return;
+
+    const item = items.find((i) => i.id === itemId);
+    const linked = (item?.grocery_item_stores || []).some(
+      (link) => link.stores?.id === store.id
+    );
+    const previous = items;
+
+    setItems((prev) =>
+      prev.map((entry) =>
+        entry.id === itemId
+          ? {
+              ...entry,
+              grocery_item_stores: linked
+                ? entry.grocery_item_stores.filter(
+                    (link) => link.stores?.id !== store.id
+                  )
+                : [
+                    ...entry.grocery_item_stores,
+                    { stores: { id: store.id, name: store.name } },
+                  ],
+            }
+          : entry
+      )
+    );
+
+    try {
+      const { error } = linked
+        ? await supabase
+            .from('grocery_item_stores')
+            .delete()
+            .eq('grocery_item_id', itemId)
+            .eq('store_id', store.id)
+        : await supabase
+            .from('grocery_item_stores')
+            .insert({ grocery_item_id: itemId, store_id: store.id });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating stores:', error);
+      toast('Couldn’t change that store. Try again!', 'error');
+      setItems(previous);
+    }
+  };
 
   // Counts sort largest-first on the first click; text sorts A-Z.
   const toggleSort = (key) => {
@@ -101,6 +282,15 @@ export default function Groceries() {
       <section className="groceries-section">
         <div className="groceries-header">
           <h2>Groceries</h2>
+          <button
+            type="button"
+            className="btn-create-item"
+            onClick={openCreate}
+            aria-label="Create Item"
+          >
+            <span className="create-item-plus" aria-hidden="true">+</span>
+            <span className="btn-create-item-label">Create Item</span>
+          </button>
         </div>
 
         {loading ? (
@@ -169,28 +359,32 @@ export default function Groceries() {
                   {sorted.map((row) => (
                     <tr key={row.id}>
                       <td className="col-name">{row.name}</td>
-                      <td className="col-category">{row.category}</td>
-                      <td className="col-meals">
-                        {row.meals.length > 0 ? (
-                          `${row.meals.length} ${
-                            row.meals.length === 1 ? 'meal' : 'meals'
-                          }`
-                        ) : (
-                          <span className="cell-empty">—</span>
-                        )}
+                      <td className="col-category">
+                        <CategorySelect
+                          variant="inline"
+                          label={`Category for ${row.name}`}
+                          value={row.category}
+                          options={CATEGORY_OPTIONS}
+                          onChange={(category) =>
+                            changeCategory(row.id, category)
+                          }
+                        />
                       </td>
-                      <td>
-                        {row.stores.length > 0 ? (
-                          <span className="cell-pills">
-                            {row.stores.map((store) => (
-                              <span key={store} className="cell-pill">
-                                {store}
-                              </span>
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="cell-empty">—</span>
-                        )}
+                      <td className="col-meals">
+                        {row.meals.length > 0
+                          ? `${row.meals.length} ${
+                              row.meals.length === 1 ? 'meal' : 'meals'
+                            }`
+                          : '—'}
+                      </td>
+                      <td className="col-stores">
+                        <StoreSelect
+                          variant="inline"
+                          label={`Stores for ${row.name}`}
+                          values={row.stores}
+                          options={stores}
+                          onToggle={(store) => toggleStore(row.id, store)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -200,6 +394,79 @@ export default function Groceries() {
           </>
         )}
       </section>
+
+      {showCreate && (
+        <div
+          className="modal-overlay"
+          onClick={closeCreate}
+          role="presentation"
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create an Item"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ModalHeader title="Create an Item" onClose={closeCreate} />
+
+            <form onSubmit={createItem} className="grocery-form">
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="newGroceryName">Name</label>
+                  <input
+                    id="newGroceryName"
+                    type="text"
+                    placeholder="e.g., Olive oil"
+                    value={newName}
+                    onChange={(e) => {
+                      setNewName(e.target.value);
+                      if (createError) setCreateError('');
+                    }}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Category</label>
+                  <CategorySelect
+                    label="Category"
+                    value={newCategory || guessCategory(newName)}
+                    options={CATEGORY_OPTIONS}
+                    onChange={setNewCategory}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stores</label>
+                  <StoreSelect
+                    label="Stores"
+                    values={newStores}
+                    options={stores}
+                    onToggle={toggleNewStore}
+                  />
+                </div>
+
+                {createError && <p className="form-error">{createError}</p>}
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn-save-meal" disabled={saving}>
+                  {saving ? 'Creating...' : 'Create Item'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-cancel-edit"
+                  onClick={closeCreate}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

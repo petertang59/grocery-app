@@ -3,7 +3,13 @@ import './CategorySelect.css';
 
 // A custom dropdown so the menu can be styled to match the app (a native
 // <select> renders an OS-level menu that CSS can't reach).
-export default function CategorySelect({ value, options, onChange }) {
+export default function CategorySelect({
+  value,
+  options,
+  onChange,
+  label = 'Category',
+  variant = 'field',
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -29,14 +35,19 @@ export default function CategorySelect({ value, options, onChange }) {
   }, [open]);
 
   return (
-    <div className="category-select-wrap" ref={rootRef}>
+    <div
+      className={`category-select-wrap${
+        variant === 'inline' ? ' inline' : ''
+      }`}
+      ref={rootRef}
+    >
       <button
         type="button"
         className={`category-trigger${open ? ' open' : ''}`}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Category"
+        aria-label={label}
       >
         <span className="category-value">{value}</span>
         <svg

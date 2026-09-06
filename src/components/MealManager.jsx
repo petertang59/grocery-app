@@ -4,10 +4,22 @@ import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
 import { CATEGORIES, guessCategory } from '../categories';
-import { resolveGroceryItems, groceryKey } from '../groceryItems';
+import {
+  resolveGroceryItems,
+  groceryKey,
+  fetchCatalogueStores,
+  syncGroceryItemStores,
+} from '../groceryItems';
+import StoreSelect from './StoreSelect';
+import ModalHeader from './ModalHeader';
 import './MealManager.css';
 
-const emptyIngredient = () => ({ name: '', category: '' });
+const emptyIngredient = () => ({
+  name: '',
+  category: '',
+  stores: [],
+  storesTouched: false,
+});
 
 // Alphabetical for the picker; the shopping list keeps its aisle order.
 const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
@@ -29,6 +41,8 @@ export default function MealManager({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [formError, setFormError] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [storeOptions, setStoreOptions] = useState([]);
+  const [catalogueStores, setCatalogueStores] = useState(() => new Map());
 
   const isEditing = editingMealId !== null;
   const pendingDeleteMeal = meals.find((m) => m.id === pendingDeleteId);
@@ -106,6 +120,33 @@ export default function MealManager({
     }
   };
 
+  // Store options come from the stores table, so the list stays in step with
+  // whatever exists rather than being hardcoded here.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('id, name')
+        .order('name');
+      if (error) {
+        console.error('Error loading stores:', error);
+        return;
+      }
+      if (!cancelled) setStoreOptions(data || []);
+
+      try {
+        const catalogue = await fetchCatalogueStores();
+        if (!cancelled) setCatalogueStores(catalogue);
+      } catch (catalogueError) {
+        console.error('Error loading item stores:', catalogueError);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Close on Escape and lock background scroll while the modal is open.
   useEffect(() => {
     if (!showModal) return;
@@ -159,6 +200,31 @@ export default function MealManager({
     );
   };
 
+  // Until the user touches the row, show whatever stores the catalogue
+  // already has for that name — otherwise an untouched row would look empty
+  // and saving would appear to clear stores it never meant to change.
+  const storesFor = (ingredient) =>
+    ingredient.storesTouched
+      ? ingredient.stores
+      : catalogueStores.get(groceryKey(ingredient.name)) ?? [];
+
+  // Each store toggles on its own; an ingredient can come from several.
+  const toggleIngredientStore = (index, storeName) => {
+    setIngredients((prev) =>
+      prev.map((ing, i) => {
+        if (i !== index) return ing;
+        const current = storesFor(ing);
+        return {
+          ...ing,
+          storesTouched: true,
+          stores: current.includes(storeName)
+            ? current.filter((name) => name !== storeName)
+            : [...current, storeName],
+        };
+      })
+    );
+  };
+
   const resetForm = () => {
     setMealName('');
     setIngredients([emptyIngredient()]);
@@ -179,6 +245,8 @@ export default function MealManager({
         ? meal.ingredients.map((ing) => ({
             name: ing.name,
             category: ing.category || '',
+            stores: [],
+            storesTouched: false,
           }))
         : [emptyIngredient()]
     );
@@ -216,6 +284,18 @@ export default function MealManager({
         ...row,
         grocery_item_id: catalogue.get(groceryKey(row.name)),
       }));
+
+      // Only rows the user actually edited are synced, so saving a meal never
+      // silently rewrites the stores of ingredients it merely mentions.
+      const storeEdits = ingredients
+        .filter((ing) => ing.storesTouched && ing.name.trim())
+        .map((ing) => ({
+          itemId: catalogue.get(groceryKey(ing.name)),
+          storeIds: ing.stores
+            .map((name) => storeOptions.find((s) => s.name === name)?.id)
+            .filter(Boolean),
+        }))
+        .filter((edit) => edit.itemId);
 
       if (isEditing) {
         // Update the meal name.
@@ -259,6 +339,18 @@ export default function MealManager({
           );
 
         if (ingError) throw ingError;
+      }
+
+      for (const edit of storeEdits) {
+        await syncGroceryItemStores(edit.itemId, edit.storeIds);
+      }
+
+      if (storeEdits.length > 0) {
+        try {
+          setCatalogueStores(await fetchCatalogueStores());
+        } catch (refreshError) {
+          console.error('Error refreshing item stores:', refreshError);
+        }
       }
 
       resetForm();
@@ -356,16 +448,20 @@ export default function MealManager({
                 className={`meal-card${
                   shoppingMealIds.includes(meal.id) ? ' in-list' : ''
                 }${editingMealId === meal.id ? ' editing' : ''}`}
+                onClick={() => startEditing(meal)}
               >
                 <button
                   className={`btn-shop${
                     shoppingMealIds.includes(meal.id) ? ' in-list' : ''
                   }`}
-                  onClick={() =>
-                    shoppingMealIds.includes(meal.id)
-                      ? removeMealFromList(meal)
-                      : addMealToList(meal)
-                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (shoppingMealIds.includes(meal.id)) {
+                      removeMealFromList(meal);
+                    } else {
+                      addMealToList(meal);
+                    }
+                  }}
                   aria-label={
                     shoppingMealIds.includes(meal.id)
                       ? 'In shopping list'
@@ -459,17 +555,10 @@ export default function MealManager({
             aria-label={isEditing ? 'Edit Meal' : 'Create a New Meal'}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <h2>{isEditing ? 'Edit Meal' : 'Create a New Meal'}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeModal}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+            <ModalHeader
+              title={isEditing ? 'Edit Meal' : 'Create a New Meal'}
+              onClose={closeModal}
+            />
 
             <form onSubmit={saveMeal} className="meal-form">
               <div className="modal-body">
@@ -487,20 +576,35 @@ export default function MealManager({
 
               <div className="form-group">
                 <label>Ingredients</label>
+                {/* Column headings; each control carries its own aria-label. */}
+                <div className="ingredient-row ingredient-head" aria-hidden="true">
+                  <span>Name</span>
+                  <span>Category</span>
+                  <span>Store</span>
+                  <span />
+                </div>
                 {ingredients.map((ingredient, index) => (
                   <div key={index} className="ingredient-row">
                     <input
                       type="text"
                       placeholder="e.g., Eggs"
+                      aria-label={`Ingredient ${index + 1} name`}
                       value={ingredient.name}
                       onChange={(e) =>
                         updateIngredientName(index, e.target.value)
                       }
                     />
                     <CategorySelect
+                      label={`Category for ingredient ${index + 1}`}
                       value={ingredient.category || guessCategory(ingredient.name)}
                       options={CATEGORY_OPTIONS}
                       onChange={(cat) => updateIngredientCategory(index, cat)}
+                    />
+                    <StoreSelect
+                      label={`Stores for ingredient ${index + 1}`}
+                      values={storesFor(ingredient)}
+                      options={storeOptions}
+                      onToggle={(store) => toggleIngredientStore(index, store)}
                     />
                     {ingredients.length > 1 && (
                       <button
