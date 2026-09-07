@@ -79,15 +79,14 @@
   min-width: 0;
 }
 
+/* Pills stay on one line everywhere; anything that doesn't fit collapses
+   into a "+N" badge, measured against the bench below. */
 .store-pills {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-/* In a table the pills stay on one line and overflow into a "+N". */
-.store-select.inline .store-pills {
   flex-wrap: nowrap;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Off-layout copy used only to measure each pill's natural width. */
@@ -95,14 +94,11 @@
   position: absolute;
   top: 0;
   left: 0;
+  overflow: visible;
   visibility: hidden;
   pointer-events: none;
   flex-wrap: nowrap;
   white-space: nowrap;
-}
-
-.store-pill-more {
-  flex-shrink: 0;
 }
 
 .store-pill {
@@ -113,6 +109,18 @@
   font-size: 12px;
   color: var(--text-light);
   white-space: nowrap;
+  /* In a narrow control the last visible pill truncates rather than pushing
+     the "+N" out of view. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The badge and the measuring copies keep their natural width. */
+.store-pill-more,
+.store-pills-bench .store-pill {
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .store-none {

@@ -16,11 +16,10 @@ export default function StoreSelect({
   const caretRef = useRef(null);
   // How many pills fit on one line; the rest collapse into a "+N".
   const [shownCount, setShownCount] = useState(values.length);
-  const collapses = variant === 'inline';
 
   useLayoutEffect(() => {
-    if (!collapses || values.length === 0) {
-      setShownCount(values.length);
+    if (values.length === 0) {
+      setShownCount(0);
       return;
     }
 
@@ -34,12 +33,14 @@ export default function StoreSelect({
       const gap = parseFloat(getComputedStyle(bench).columnGap) || 0;
       const caret = caretRef.current?.getBoundingClientRect().width ?? 0;
 
-      // Width the pills can occupy: the cell, less the trigger's own padding
-      // and the caret that sits beside them.
+      // Width the pills can occupy: the control, less the trigger's own
+      // padding and border, and the caret that sits beside them.
       const available =
         root.clientWidth -
         parseFloat(triggerStyle.paddingLeft) -
         parseFloat(triggerStyle.paddingRight) -
+        parseFloat(triggerStyle.borderLeftWidth) -
+        parseFloat(triggerStyle.borderRightWidth) -
         caret -
         gap;
 
@@ -76,9 +77,9 @@ export default function StoreSelect({
     const observer = new ResizeObserver(measure);
     if (rootRef.current) observer.observe(rootRef.current);
     return () => observer.disconnect();
-  }, [collapses, values]);
+  }, [values]);
 
-  const shown = collapses ? values.slice(0, shownCount) : values;
+  const shown = values.slice(0, shownCount);
   const overflow = values.length - shown.length;
 
   useEffect(() => {
@@ -140,7 +141,7 @@ export default function StoreSelect({
         </svg>
       </button>
 
-      {collapses && values.length > 0 && (
+      {values.length > 0 && (
         <span className="store-pills store-pills-bench" ref={measureRef} aria-hidden="true">
           {values.map((value) => (
             <span key={value} className="store-pill">

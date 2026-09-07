@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
-import { CATEGORIES, guessCategory } from '../categories';
+import { guessCategory } from '../categories';
+import { useCategories } from '../useCategories';
 import {
   resolveGroceryItems,
   groceryKey,
-  fetchCatalogueStores,
+  fetchCatalogue,
   syncGroceryItemStores,
 } from '../groceryItems';
+import IngredientInput from './IngredientInput';
 import StoreSelect from './StoreSelect';
 import ModalHeader from './ModalHeader';
+import { shouldFlipMenu } from '../menuPlacement';
 import './MealManager.css';
 
 const emptyIngredient = () => ({
@@ -22,8 +25,6 @@ const emptyIngredient = () => ({
 });
 
 // Alphabetical for the picker; the shopping list keeps its aisle order.
-const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
-
 export default function MealManager({
   meals,
   onMealAdded,
@@ -31,6 +32,7 @@ export default function MealManager({
   shoppingMealIds,
   setShoppingMealIds,
 }) {
+  const { options: CATEGORY_OPTIONS } = useCategories();
   const toast = useToast();
   const [mealName, setMealName] = useState('');
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
@@ -41,8 +43,10 @@ export default function MealManager({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [formError, setFormError] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuUp, setMenuUp] = useState(false);
+  const mealsGridRef = useRef(null);
   const [storeOptions, setStoreOptions] = useState([]);
-  const [catalogueStores, setCatalogueStores] = useState(() => new Map());
+  const [catalogue, setCatalogue] = useState([]);
 
   const isEditing = editingMealId !== null;
   const pendingDeleteMeal = meals.find((m) => m.id === pendingDeleteId);
@@ -136,10 +140,10 @@ export default function MealManager({
       if (!cancelled) setStoreOptions(data || []);
 
       try {
-        const catalogue = await fetchCatalogueStores();
-        if (!cancelled) setCatalogueStores(catalogue);
+        const items = await fetchCatalogue();
+        if (!cancelled) setCatalogue(items);
       } catch (catalogueError) {
-        console.error('Error loading item stores:', catalogueError);
+        console.error('Error loading the grocery catalogue:', catalogueError);
       }
     })();
     return () => {
@@ -180,6 +184,17 @@ export default function MealManager({
     };
   }, [openMenuId]);
 
+  // The meals list clips its own overflow, so a menu near the bottom of it
+  // (or of the viewport) opens upward instead.
+  const toggleMenu = (mealId, button) => {
+    if (openMenuId === mealId) {
+      setOpenMenuId(null);
+      return;
+    }
+    setMenuUp(shouldFlipMenu(button, mealsGridRef.current));
+    setOpenMenuId(mealId);
+  };
+
   const addIngredientField = () => {
     setIngredients([...ingredients, emptyIngredient()]);
   };
@@ -200,13 +215,33 @@ export default function MealManager({
     );
   };
 
+  const catalogueByKey = new Map(catalogue.map((item) => [item.name_key, item]));
+
+  const catalogueFor = (name) => catalogueByKey.get(groceryKey(name));
+
   // Until the user touches the row, show whatever stores the catalogue
   // already has for that name — otherwise an untouched row would look empty
   // and saving would appear to clear stores it never meant to change.
   const storesFor = (ingredient) =>
     ingredient.storesTouched
       ? ingredient.stores
-      : catalogueStores.get(groceryKey(ingredient.name)) ?? [];
+      : catalogueFor(ingredient.name)?.stores ?? [];
+
+  // An existing item keeps its own category; guessing is only for new names.
+  const categoryFor = (ingredient) =>
+    ingredient.category ||
+    catalogueFor(ingredient.name)?.category ||
+    guessCategory(ingredient.name);
+
+  const pickIngredient = (index, item) => {
+    setIngredients((prev) =>
+      prev.map((ing, i) =>
+        i === index
+          ? { ...ing, name: item.name, category: '', storesTouched: false }
+          : ing
+      )
+    );
+  };
 
   // Each store toggles on its own; an ingredient can come from several.
   const toggleIngredientStore = (index, storeName) => {
@@ -271,11 +306,11 @@ export default function MealManager({
     setSaving(true);
     try {
       const ingredientRows = ingredients
-        .map(ing => ({
+        .map((ing) => ({
           name: ing.name.trim(),
-          category: ing.category || guessCategory(ing.name),
+          category: categoryFor(ing),
         }))
-        .filter(ing => ing.name);
+        .filter((ing) => ing.name);
 
       // Point each ingredient at the shared catalogue, creating entries for
       // names that haven't been used before.
@@ -441,7 +476,7 @@ export default function MealManager({
             <p className="meals-count">
               Showing {meals.length} {meals.length === 1 ? 'meal' : 'meals'}
             </p>
-            <div className="meals-grid">
+            <div className="meals-grid" ref={mealsGridRef}>
             {meals.map((meal) => (
               <div
                 key={meal.id}
@@ -470,8 +505,8 @@ export default function MealManager({
                 >
                   <svg
                     className="btn-icon"
-                    width="16"
-                    height="16"
+                    width="12"
+                    height="12"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -487,10 +522,6 @@ export default function MealManager({
                 </button>
                 <div className="meal-card-info">
                   <h3>{meal.name}</h3>
-                  <p className="ingredient-count">
-                    {meal.ingredients.length}{' '}
-                    {meal.ingredients.length === 1 ? 'ingredient' : 'ingredients'}
-                  </p>
                 </div>
                 <div
                   className="meal-card-menu"
@@ -502,14 +533,15 @@ export default function MealManager({
                     aria-label="More options"
                     aria-haspopup="true"
                     aria-expanded={openMenuId === meal.id}
-                    onClick={() =>
-                      setOpenMenuId(openMenuId === meal.id ? null : meal.id)
-                    }
+                    onClick={(e) => toggleMenu(meal.id, e.currentTarget)}
                   >
                     ⋮
                   </button>
                   {openMenuId === meal.id && (
-                    <div className="dropdown-menu" role="menu">
+                    <div
+                      className={`dropdown-menu${menuUp ? ' up' : ''}`}
+                      role="menu"
+                    >
                       <button
                         type="button"
                         role="menuitem"
@@ -585,18 +617,16 @@ export default function MealManager({
                 </div>
                 {ingredients.map((ingredient, index) => (
                   <div key={index} className="ingredient-row">
-                    <input
-                      type="text"
-                      placeholder="e.g., Eggs"
-                      aria-label={`Ingredient ${index + 1} name`}
+                    <IngredientInput
+                      label={`Ingredient ${index + 1} name`}
                       value={ingredient.name}
-                      onChange={(e) =>
-                        updateIngredientName(index, e.target.value)
-                      }
+                      catalogue={catalogue}
+                      onChange={(name) => updateIngredientName(index, name)}
+                      onPick={(item) => pickIngredient(index, item)}
                     />
                     <CategorySelect
                       label={`Category for ingredient ${index + 1}`}
-                      value={ingredient.category || guessCategory(ingredient.name)}
+                      value={categoryFor(ingredient)}
                       options={CATEGORY_OPTIONS}
                       onChange={(cat) => updateIngredientCategory(index, cat)}
                     />

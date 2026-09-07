@@ -1,6 +1,9 @@
+/* Room at the foot of the list so the floating progress bar never covers the
+   last item once you've scrolled all the way down. */
 .shopping-list {
   display: grid;
   gap: 2rem;
+  padding-bottom: 4rem;
 }
 
 .list-section {
@@ -119,6 +122,60 @@
   background: var(--primary-solid-hover);
 }
 
+/* Filter by store. Scrolls sideways rather than wrapping on narrow screens. */
+.store-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.store-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.store-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.store-tab:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.store-tab.active {
+  background: var(--primary-tint);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
+.store-tab:focus,
+.store-tab:focus-visible {
+  outline: none;
+}
+
+.store-tab-count {
+  padding: 0.05rem 0.4rem;
+  background: var(--count-pill);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .meals-added-count {
   display: none;
   color: var(--text-light);
@@ -170,12 +227,6 @@
 .category-body > .category-body-inner {
   overflow: hidden;
   min-height: 0;
-}
-
-/* An open row menu needs to escape that clip; safe because the section is
-   fully expanded whenever a menu is open. */
-.category-body.menu-open > .category-body-inner {
-  overflow: visible;
 }
 
 /* Completed items, parked below what's still to get. */
@@ -344,16 +395,16 @@
   /* Tracks the sidebar so it stays aligned when collapsed. */
   left: var(--sidebar-width, 240px);
   right: 0;
-  top: 0;
+  bottom: 0;
   /* Full-bleed band from the sidebar to the window edge. */
   margin: 0 auto;
   border-radius: 0;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   box-shadow: none;
   z-index: 30;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-100%);
+  transform: translateY(100%);
   transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0.25s;
 }
@@ -420,7 +471,9 @@
   .progress-fixed {
     left: 0;
     right: 0;
-    top: 0;
+    /* Sits flush on top of the bottom nav rather than behind it. The nav is
+       3.875rem tall plus whatever inset the device reports. */
+    bottom: calc(3.875rem + env(safe-area-inset-bottom, 0px));
     max-width: none;
     gap: 1rem;
     padding: 1rem 1.25rem;

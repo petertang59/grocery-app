@@ -43,24 +43,25 @@ export async function resolveGroceryItems(entries) {
   return byKey;
 }
 
-// name_key -> array of store names, for showing an item's current stores
-// before anything has been edited.
-export async function fetchCatalogueStores() {
+// The catalogue as {name, name_key, category, stores}, for suggesting existing
+// items and showing their category and stores before anything is edited.
+export async function fetchCatalogue() {
   const { data, error } = await supabase
     .from('grocery_items')
-    .select('name_key, grocery_item_stores(stores(name))');
+    .select('name, name_key, category, grocery_item_stores(stores(name))')
+    .order('name');
 
   if (error) throw error;
 
-  return new Map(
-    (data || []).map((item) => [
-      item.name_key,
-      (item.grocery_item_stores || [])
-        .map((link) => link.stores?.name)
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
-    ])
-  );
+  return (data || []).map((item) => ({
+    name: item.name,
+    name_key: item.name_key,
+    category: item.category || '',
+    stores: (item.grocery_item_stores || [])
+      .map((link) => link.stores?.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b)),
+  }));
 }
 
 // Brings one item's store links in line with `storeIds`, touching only what

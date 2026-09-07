@@ -1,4 +1,8 @@
-// Standard grocery-aisle categories, in the order they should appear in the list.
+import { supabase } from './supabaseClient';
+
+// The categories the app ships with, in aisle order. Since 003 these live in
+// `grocery_categories`; this list stays as the seed order and as the fallback
+// for anyone whose database hasn't been migrated yet.
 export const CATEGORIES = [
   'Produce',
   'Protein',
@@ -64,4 +68,20 @@ export function guessCategory(name) {
     if (keywords.some((kw) => n.includes(kw))) return category;
   }
   return 'Other';
+}
+
+// Ordered category names from the database, or null when they can't be read
+// (the table isn't there yet, or the request failed) so callers can fall back.
+export async function fetchCategories() {
+  const { data, error } = await supabase
+    .from('grocery_categories')
+    .select('id, name, sort_order')
+    .order('sort_order')
+    .order('name');
+
+  if (error) {
+    console.error('Error loading categories:', error);
+    return null;
+  }
+  return data?.length ? data : null;
 }

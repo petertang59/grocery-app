@@ -1,0 +1,140 @@
+.settings {
+  display: grid;
+  gap: 2rem;
+  min-width: 0;
+}
+
+.settings-section {
+  padding: 0;
+  min-width: 0;
+}
+
+/* Matches the headers on the other pages. */
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.settings-header h2 {
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.settings-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.25rem;
+}
+
+.settings-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  /* Buttons don't inherit either of these. */
+  font-family: inherit;
+  text-align: left;
+}
+
+/* Only the cards that open something react to the pointer. */
+button.settings-card {
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+button.settings-card:hover {
+  border-color: var(--border-hover);
+}
+
+button.settings-card:focus,
+button.settings-card:focus-visible {
+  outline: none;
+}
+
+.settings-card-chevron {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-light);
+}
+
+.settings-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: var(--count-pill);
+  color: var(--text-light);
+}
+
+.settings-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sized to match .btn-cancel-edit on the modals. */
+.settings-card-action {
+  flex-shrink: 0;
+  align-self: center;
+  padding: calc(0.6rem - 1px) 1rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.settings-card-action:hover {
+  background: var(--count-pill);
+  border-color: var(--border-hover);
+}
+
+.settings-card-action:focus,
+.settings-card-action:focus-visible {
+  outline: none;
+}
+
+.settings-card h3 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.settings-card p {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0.25rem 0 0;
+}
+
+@media (max-width: 768px) {
+  .settings {
+    gap: 1.5rem;
+  }
+
+  .settings-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .settings-cards {
+    grid-template-columns: 1fr;
+  }
+}

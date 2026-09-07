@@ -211,13 +211,7 @@ body {
   gap: 0.5rem;
 }
 
-/* Too narrow for a side-by-side row once collapsed. */
-.sidebar-collapsed .sidebar-footer {
-  flex-direction: column;
-}
-
-.sidebar-collapse-btn,
-.theme-toggle-btn {
+.sidebar-collapse-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -233,16 +227,13 @@ body {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.sidebar-collapse-btn:hover,
-.theme-toggle-btn:hover {
+.sidebar-collapse-btn:hover {
   background: var(--primary-tint);
   color: var(--text);
 }
 
 .sidebar-collapse-btn:focus,
-.sidebar-collapse-btn:focus-visible,
-.theme-toggle-btn:focus,
-.theme-toggle-btn:focus-visible {
+.sidebar-collapse-btn:focus-visible {
   outline: none;
 }
 
@@ -292,8 +283,7 @@ body {
     display: none;
   }
 
-  .sidebar-collapse-btn,
-  .theme-toggle-btn {
+  .sidebar-collapse-btn {
     display: none;
   }
 

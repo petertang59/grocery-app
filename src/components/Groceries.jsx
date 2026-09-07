@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import CategorySelect from './CategorySelect';
 import StoreSelect from './StoreSelect';
 import { useToast } from './ToastProvider';
 import ModalHeader from './ModalHeader';
-import { CATEGORIES, guessCategory } from '../categories';
-import { groceryKey } from '../groceryItems';
+import ConfirmModal from './ConfirmModal';
+import { guessCategory } from '../categories';
+import { useCategories } from '../useCategories';
+import { groceryKey, syncGroceryItemStores } from '../groceryItems';
+import { shouldFlipMenu } from '../menuPlacement';
 import './Groceries.css';
 
-const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
 
 const COLUMNS = [
   { key: 'name', label: 'Name', numeric: false },
@@ -17,19 +19,25 @@ const COLUMNS = [
   { key: 'stores', label: 'Stores', numeric: false },
 ];
 
-export default function Groceries() {
+export default function Groceries({ onMealsChanged }) {
   const toast = useToast();
+  const { options: CATEGORY_OPTIONS } = useCategories();
   const [items, setItems] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [newName, setNewName] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newStores, setNewStores] = useState([]);
   const [createError, setCreateError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuUp, setMenuUp] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const tableWrapRef = useRef(null);
 
   useEffect(() => {
     loadItems();
@@ -52,10 +60,47 @@ export default function Groceries() {
     };
   }, [showCreate]);
 
+  // Close the open row menu on any outside click or Escape.
+  useEffect(() => {
+    if (openMenuId === null) return;
+
+    const onDocClick = () => setOpenMenuId(null);
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [openMenuId]);
+
+  // The table clips its own overflow, so a menu near the bottom opens upward.
+  const toggleMenu = (rowId, button) => {
+    if (openMenuId === rowId) {
+      setOpenMenuId(null);
+      return;
+    }
+    setMenuUp(shouldFlipMenu(button, tableWrapRef.current));
+    setOpenMenuId(rowId);
+  };
+
   const openCreate = () => {
+    setEditingItem(null);
     setNewName('');
     setNewCategory('');
     setNewStores([]);
+    setCreateError('');
+    setShowCreate(true);
+  };
+
+  const openEdit = (row) => {
+    setEditingItem(row);
+    setNewName(row.name);
+    setNewCategory(row.category);
+    setNewStores(row.stores);
     setCreateError('');
     setShowCreate(true);
   };
@@ -73,17 +118,23 @@ export default function Groceries() {
     );
   };
 
-  const createItem = async (e) => {
+  const saveItem = async (e) => {
     e.preventDefault();
     const name = newName.trim();
+    const category = newCategory || guessCategory(name);
 
     if (!name) {
       setCreateError('Give the item a name first.');
       return;
     }
     // The catalogue is one row per real item, so a repeat name is a mistake
-    // rather than something to silently merge.
-    if (items.some((item) => groceryKey(item.name) === groceryKey(name))) {
+    // rather than something to silently merge. An item keeps its own name.
+    const clash = items.some(
+      (item) =>
+        groceryKey(item.name) === groceryKey(name) &&
+        item.id !== editingItem?.id
+    );
+    if (clash) {
       setCreateError(`“${name}” is already in your groceries.`);
       return;
     }
@@ -91,32 +142,47 @@ export default function Groceries() {
     setSaving(true);
     setCreateError('');
 
+    const storeIds = newStores
+      .map((storeName) => stores.find((s) => s.name === storeName)?.id)
+      .filter(Boolean);
+
     try {
-      const { data: created, error } = await supabase
-        .from('grocery_items')
-        .insert({ name, category: newCategory || guessCategory(name) })
-        .select('id')
-        .single();
+      if (editingItem) {
+        const { error } = await supabase
+          .from('grocery_items')
+          .update({ name, category })
+          .eq('id', editingItem.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        await syncGroceryItemStores(editingItem.id, storeIds);
+      } else {
+        const { data: created, error } = await supabase
+          .from('grocery_items')
+          .insert({ name, category })
+          .select('id')
+          .single();
 
-      const links = newStores
-        .map((storeName) => stores.find((s) => s.name === storeName)?.id)
-        .filter(Boolean)
-        .map((storeId) => ({ grocery_item_id: created.id, store_id: storeId }));
+        if (error) throw error;
 
-      if (links.length > 0) {
-        const { error: linkError } = await supabase
-          .from('grocery_item_stores')
-          .insert(links);
-        if (linkError) throw linkError;
+        if (storeIds.length > 0) {
+          const { error: linkError } = await supabase
+            .from('grocery_item_stores')
+            .insert(
+              storeIds.map((storeId) => ({
+                grocery_item_id: created.id,
+                store_id: storeId,
+              }))
+            );
+          if (linkError) throw linkError;
+        }
       }
 
       setShowCreate(false);
+      setEditingItem(null);
       loadItems();
     } catch (error) {
-      console.error('Error creating grocery item:', error);
-      setCreateError('Couldn’t create that item. Try again!');
+      console.error('Error saving grocery item:', error);
+      setCreateError('Couldn’t save that item. Try again!');
     } finally {
       setSaving(false);
     }
@@ -237,6 +303,38 @@ export default function Groceries() {
     }
   };
 
+  // Ingredients point at the catalogue, so those rows have to go first — and
+  // deleting them cascades to any shopping list lines that referenced them.
+  const deleteItem = async (row) => {
+    try {
+      const { error: ingredientError } = await supabase
+        .from('ingredients')
+        .delete()
+        .eq('grocery_item_id', row.id);
+
+      if (ingredientError) throw ingredientError;
+
+      const { error } = await supabase
+        .from('grocery_items')
+        .delete()
+        .eq('id', row.id);
+
+      if (error) throw error;
+
+      // The edit modal would otherwise be left pointing at a deleted row.
+      if (editingItem?.id === row.id) {
+        setShowCreate(false);
+        setEditingItem(null);
+      }
+      loadItems();
+      // Meals just lost an ingredient; the shopping list updates over realtime.
+      if (row.meals.length > 0) onMealsChanged?.();
+    } catch (error) {
+      console.error('Error deleting grocery item:', error);
+      toast('Couldn’t delete that item. Try again!', 'error');
+    }
+  };
+
   // Counts sort largest-first on the first click; text sorts A-Z.
   const toggleSort = (key) => {
     const column = COLUMNS.find((c) => c.key === key);
@@ -308,7 +406,7 @@ export default function Groceries() {
               Showing {sorted.length} {sorted.length === 1 ? 'item' : 'items'}
             </p>
 
-            <div className="groceries-table-wrap">
+            <div className="groceries-table-wrap" ref={tableWrapRef}>
               <table className="groceries-table">
                 <thead>
                   <tr>
@@ -353,13 +451,25 @@ export default function Groceries() {
                         </button>
                       </th>
                     ))}
+                    <th
+                      scope="col"
+                      className="col-actions"
+                      aria-label="Actions"
+                    />
                   </tr>
                 </thead>
                 <tbody>
                   {sorted.map((row) => (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className="grocery-row"
+                      onClick={() => openEdit(row)}
+                    >
                       <td className="col-name">{row.name}</td>
-                      <td className="col-category">
+                      <td
+                        className="col-category"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <CategorySelect
                           variant="inline"
                           label={`Category for ${row.name}`}
@@ -377,7 +487,10 @@ export default function Groceries() {
                             }`
                           : '—'}
                       </td>
-                      <td className="col-stores">
+                      <td
+                        className="col-stores"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <StoreSelect
                           variant="inline"
                           label={`Stores for ${row.name}`}
@@ -385,6 +498,52 @@ export default function Groceries() {
                           options={stores}
                           onToggle={(store) => toggleStore(row.id, store)}
                         />
+                      </td>
+                      <td
+                        className="col-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="grocery-row-menu">
+                          <button
+                            type="button"
+                            className="btn-more"
+                            aria-label={`More options for ${row.name}`}
+                            aria-haspopup="true"
+                            aria-expanded={openMenuId === row.id}
+                            onClick={(e) => toggleMenu(row.id, e.currentTarget)}
+                          >
+                            ⋮
+                          </button>
+                          {openMenuId === row.id && (
+                            <div
+                              className={`dropdown-menu${menuUp ? ' up' : ''}`}
+                              role="menu"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  openEdit(row);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="dropdown-item danger"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setPendingDelete(row);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -405,12 +564,15 @@ export default function Groceries() {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Create an Item"
+            aria-label={editingItem ? 'Edit Item' : 'Create an Item'}
             onClick={(e) => e.stopPropagation()}
           >
-            <ModalHeader title="Create an Item" onClose={closeCreate} />
+            <ModalHeader
+              title={editingItem ? 'Edit Item' : 'Create an Item'}
+              onClose={closeCreate}
+            />
 
-            <form onSubmit={createItem} className="grocery-form">
+            <form onSubmit={saveItem} className="grocery-form">
               <div className="modal-body">
                 <div className="form-group">
                   <label htmlFor="newGroceryName">Name</label>
@@ -452,7 +614,11 @@ export default function Groceries() {
 
               <div className="form-actions">
                 <button type="submit" className="btn-save-meal" disabled={saving}>
-                  {saving ? 'Creating...' : 'Create Item'}
+                  {saving
+                    ? 'Saving...'
+                    : editingItem
+                    ? 'Save changes'
+                    : 'Create Item'}
                 </button>
                 <button
                   type="button"
@@ -467,6 +633,33 @@ export default function Groceries() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title="Delete item?"
+        message={
+          pendingDelete
+            ? pendingDelete.meals.length > 0
+              ? `“${pendingDelete.name}” is used in ${
+                  pendingDelete.meals.length
+                } ${
+                  pendingDelete.meals.length === 1 ? 'meal' : 'meals'
+                } (${pendingDelete.meals.join(', ')}). Deleting it removes the ` +
+                `ingredient from ${
+                  pendingDelete.meals.length === 1 ? 'that meal' : 'those meals'
+                } and from your shopping list. This can’t be undone.`
+              : `“${pendingDelete.name}” isn’t used in any meals. This can’t be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={() => {
+          deleteItem(pendingDelete);
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

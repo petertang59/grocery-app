@@ -4,20 +4,27 @@ import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import ModalHeader from './ModalHeader';
 import { useToast } from './ToastProvider';
-import { CATEGORIES, guessCategory } from '../categories';
-import { resolveGroceryItems, groceryKey } from '../groceryItems';
+import { guessCategory } from '../categories';
+import { useCategories } from '../useCategories';
+import {
+  resolveGroceryItems,
+  groceryKey,
+  syncGroceryItemStores,
+} from '../groceryItems';
+import StoreSelect from './StoreSelect';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
-const CATEGORY_OPTIONS = [...CATEGORIES].sort((a, b) => a.localeCompare(b));
+const ALL_STORES = 'All';
+const NO_STORE = 'No store';
 
 export default function ShoppingList({ onShoppingChanged }) {
   const toast = useToast();
+  const { categories, options: CATEGORY_OPTIONS } = useCategories();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(null);
-  const [openMenuKey, setOpenMenuKey] = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [showFixedProgress, setShowFixedProgress] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -25,7 +32,9 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [newItemCategory, setNewItemCategory] = useState('');
   const [addError, setAddError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [newItemStores, setNewItemStores] = useState([]);
+  const [storeOptions, setStoreOptions] = useState([]);
+  const [activeTab, setActiveTab] = useState(ALL_STORES);
   const observerRef = useRef(null);
 
   // Callback ref: attach an IntersectionObserver to the top progress bar as
@@ -64,22 +73,6 @@ export default function ShoppingList({ onShoppingChanged }) {
     };
   }, [showAddModal]);
 
-  useEffect(() => {
-    if (openMenuKey === null) return;
-
-    const onDocClick = () => setOpenMenuKey(null);
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setOpenMenuKey(null);
-    };
-    document.addEventListener('click', onDocClick);
-    document.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      document.removeEventListener('click', onDocClick);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [openMenuKey]);
-
   const toggleCategory = (category) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -90,6 +83,24 @@ export default function ShoppingList({ onShoppingChanged }) {
   };
 
   // Load the whole shopping list and keep it in sync across devices.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('id, name')
+        .order('name');
+      if (error) {
+        console.error('Error loading stores:', error);
+        return;
+      }
+      if (!cancelled) setStoreOptions(data || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     loadShoppingList();
 
@@ -112,7 +123,7 @@ export default function ShoppingList({ onShoppingChanged }) {
       const { data, error } = await supabase
         .from('shopping_list_items')
         .select(
-          '*, ingredients(name, category, grocery_item_id, grocery_items(id, name, category)), meals(name)'
+          '*, ingredients(name, category, grocery_item_id, grocery_items(id, name, category, grocery_item_stores(stores(name)))), meals(name)'
         );
 
       if (error) throw error;
@@ -139,6 +150,10 @@ export default function ShoppingList({ onShoppingChanged }) {
           key,
           name: rawName.trim(),
           groceryItemId: catalogueItem?.id ?? null,
+          groceryStores: (catalogueItem?.grocery_item_stores || [])
+            .map((link) => link.stores?.name)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b)),
           ids: [],
           manualIngredientIds: [],
           checkedCount: 0,
@@ -165,17 +180,49 @@ export default function ShoppingList({ onShoppingChanged }) {
         mealList: [...g.meals].sort(),
         // Only editable when every row behind it was added by hand — a merged
         // group that also comes from a meal is owned by that meal.
-        isManual: g.manualIngredientIds.length === g.ids.length,
       }))
       // Alphabetical only — keep a stable order so checking doesn't reorder.
       .sort((a, b) => a.name.localeCompare(b.name));
   })();
 
+  const storesOnList = [
+    ...new Set(groups.flatMap((group) => group.groceryStores)),
+  ].sort((a, b) => a.localeCompare(b));
+  const hasUnassigned = groups.some((group) => group.groceryStores.length === 0);
+
+  const tabs = [
+    ...storesOnList,
+    ...(hasUnassigned ? [NO_STORE] : []),
+  ];
+  // "All" only earns its place when there's more than one thing to filter by.
+  if (tabs.length > 1) tabs.unshift(ALL_STORES);
+
+  // The selected tab can vanish — the last T&T item gets checked off and
+  // removed, say — so fall back rather than showing an empty list.
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? ALL_STORES;
+
+  const matchesTab = (group) => {
+    if (currentTab === ALL_STORES) return true;
+    if (currentTab === NO_STORE) return group.groceryStores.length === 0;
+    // An item sold at several stores belongs under each of them.
+    return group.groceryStores.includes(currentTab);
+  };
+
+  const visibleGroups = groups.filter(matchesTab);
+
+  const remainingFor = (tab) =>
+    groups.filter((group) => {
+      if (group.checked) return false;
+      if (tab === ALL_STORES) return true;
+      if (tab === NO_STORE) return group.groceryStores.length === 0;
+      return group.groceryStores.includes(tab);
+    }).length;
+
   // Bucket the merged items by category, in standard aisle order.
-  const categoryOrder = [...CATEGORIES];
+  const categoryOrder = [...categories];
   const categorySections = categoryOrder
     .map((category) => {
-      const items = groups.filter((g) => g.category === category);
+      const items = visibleGroups.filter((g) => g.category === category);
       return {
         category,
         items,
@@ -185,7 +232,8 @@ export default function ShoppingList({ onShoppingChanged }) {
     })
     .filter((section) => section.items.length > 0);
 
-  const grabbedCount = groups.filter((g) => g.checked).length;
+  const grabbedCount = visibleGroups.filter((g) => g.checked).length;
+  const visibleCount = visibleGroups.length;
 
   // How many distinct meals contributed items to the list.
   const mealCount = new Set(
@@ -274,47 +322,18 @@ export default function ShoppingList({ onShoppingChanged }) {
           </span>
         )}
       </div>
+      {/* Removing is the only thing a row does here, so it gets the one
+          button rather than a menu. Names and categories are edited on the
+          Groceries page. */}
       <div className="item-menu" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className="btn-more"
-          aria-label={`More options for ${group.name}`}
-          aria-haspopup="true"
-          aria-expanded={openMenuKey === group.key}
-          onClick={() =>
-            setOpenMenuKey(openMenuKey === group.key ? null : group.key)
-          }
+          className="btn-remove-item"
+          aria-label={`Remove ${group.name}`}
+          onClick={() => setPendingRemove(group)}
         >
-          ⋮
+          ✕
         </button>
-        {openMenuKey === group.key && (
-          <div className="dropdown-menu" role="menu">
-            {group.isManual && (
-              <button
-                type="button"
-                role="menuitem"
-                className="dropdown-item"
-                onClick={() => {
-                  setOpenMenuKey(null);
-                  openEditModal(group);
-                }}
-              >
-                Edit item
-              </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="dropdown-item danger"
-              onClick={() => {
-                setOpenMenuKey(null);
-                setPendingRemove(group);
-              }}
-            >
-              Remove item
-            </button>
-          </div>
-        )}
       </div>
     </li>
   );
@@ -323,25 +342,31 @@ export default function ShoppingList({ onShoppingChanged }) {
     setEditingItem(null);
     setNewItemName('');
     setNewItemCategory('');
-    setAddError('');
-    setShowAddModal(true);
-  };
-
-  const openEditModal = (group) => {
-    setEditingItem(group);
-    setNewItemName(group.name);
-    setNewItemCategory(group.category);
+    setNewItemStores([]);
     setAddError('');
     setShowAddModal(true);
   };
 
   const closeAddModal = () => {
     setShowAddModal(false);
-    setEditingItem(null);
     setNewItemName('');
     setNewItemCategory('');
+    setNewItemStores([]);
     setAddError('');
   };
+
+  const toggleNewItemStore = (storeName) => {
+    setNewItemStores((prev) =>
+      prev.includes(storeName)
+        ? prev.filter((name) => name !== storeName)
+        : [...prev, storeName]
+    );
+  };
+
+  const storeIdsFor = (names) =>
+    names
+      .map((name) => storeOptions.find((s) => s.name === name)?.id)
+      .filter(Boolean);
 
   // Manually-added items get an ingredient row with no meal attached, which
   // is what marks them as "not from a recipe" everywhere else in the app.
@@ -357,37 +382,10 @@ export default function ShoppingList({ onShoppingChanged }) {
     setSavingItem(true);
     setAddError('');
 
-    if (editingItem) {
-      try {
-        const category = newItemCategory || guessCategory(name);
-        const catalogue = await resolveGroceryItems([{ name, category }]);
-
-        const { error } = await supabase
-          .from('ingredients')
-          .update({
-            name,
-            category,
-            grocery_item_id: catalogue.get(groceryKey(name)),
-          })
-          .in('id', editingItem.manualIngredientIds);
-
-        if (error) throw error;
-
-        closeAddModal();
-        loadShoppingList();
-        onShoppingChanged?.();
-      } catch (error) {
-        console.error('Error updating item:', error);
-        setAddError('Couldn’t save those changes. Try again!');
-      } finally {
-        setSavingItem(false);
-      }
-      return;
-    }
-
     try {
       const category = newItemCategory || guessCategory(name);
       const catalogue = await resolveGroceryItems([{ name, category }]);
+      const itemId = catalogue.get(groceryKey(name));
 
       const { data: ingredient, error: ingredientError } = await supabase
         .from('ingredients')
@@ -395,12 +393,16 @@ export default function ShoppingList({ onShoppingChanged }) {
           name,
           category,
           meal_id: null,
-          grocery_item_id: catalogue.get(groceryKey(name)),
+          grocery_item_id: itemId,
         })
         .select()
         .single();
 
       if (ingredientError) throw ingredientError;
+
+      if (itemId) {
+        await syncGroceryItemStores(itemId, storeIdsFor(newItemStores));
+      }
 
       const { error: itemError } = await supabase
         .from('shopping_list_items')
@@ -472,6 +474,24 @@ export default function ShoppingList({ onShoppingChanged }) {
           </p>
         )}
 
+        {!loading && tabs.length > 1 && (
+          <div className="store-tabs" role="tablist" aria-label="Filter by store">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={tab === currentTab}
+                className={`store-tab${tab === currentTab ? ' active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+                <span className="store-tab-count">{remainingFor(tab)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <p className="empty-list">
             <span>Loading your list...</span>
@@ -489,7 +509,7 @@ export default function ShoppingList({ onShoppingChanged }) {
             <div className="progress" ref={setTopProgressRef}>
               <div className="progress-top">
                 <p className="progress-text">
-                  {grabbedCount} of {groups.length} items grabbed
+                  {grabbedCount} of {visibleCount} items grabbed
                 </p>
                 <button
                   className="btn-clear"
@@ -501,7 +521,7 @@ export default function ShoppingList({ onShoppingChanged }) {
               <div className="progress-bar">
                 <div
                   className="progress-fill"
-                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
+                  style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -513,12 +533,12 @@ export default function ShoppingList({ onShoppingChanged }) {
               }`}
             >
               <p className="progress-text">
-                {grabbedCount} of {groups.length} items grabbed
+                {grabbedCount} of {visibleCount} items grabbed
               </p>
               <div className="progress-bar">
                 <div
                   className="progress-fill"
-                  style={{ width: `${(grabbedCount / groups.length) * 100}%` }}
+                  style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -556,10 +576,6 @@ export default function ShoppingList({ onShoppingChanged }) {
                 <div
                   className={`category-body${
                     collapsed.has(section.category) ? ' collapsed' : ''
-                  }${
-                    section.items.some((g) => g.key === openMenuKey)
-                      ? ' menu-open'
-                      : ''
                   }`}
                 >
                   <div className="category-body-inner">
@@ -600,36 +616,49 @@ export default function ShoppingList({ onShoppingChanged }) {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label={editingItem ? 'Edit item' : 'Add an Item'}
+            aria-label="Add an Item"
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader
-              title={editingItem ? 'Edit item' : 'Add an Item'}
+              title="Add an Item"
               onClose={closeAddModal}
             />
 
             <form onSubmit={addManualItem} className="add-item-form">
               <div className="modal-body">
                 <div className="form-group">
-                  <label htmlFor="newItemName">Item</label>
-                  <div className="ingredient-row">
-                    <input
-                      id="newItemName"
-                      type="text"
-                      placeholder="e.g., Paper towels"
-                      value={newItemName}
-                      onChange={(e) => {
-                        setNewItemName(e.target.value);
-                        if (addError) setAddError('');
-                      }}
-                      autoFocus
-                    />
-                    <CategorySelect
-                      value={newItemCategory || guessCategory(newItemName)}
-                      options={CATEGORY_OPTIONS}
-                      onChange={setNewItemCategory}
-                    />
-                  </div>
+                  <label htmlFor="newItemName">Name</label>
+                  <input
+                    id="newItemName"
+                    type="text"
+                    placeholder="e.g., Paper towels"
+                    value={newItemName}
+                    onChange={(e) => {
+                      setNewItemName(e.target.value);
+                      if (addError) setAddError('');
+                    }}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Category</label>
+                  <CategorySelect
+                    label="Category"
+                    value={newItemCategory || guessCategory(newItemName)}
+                    options={CATEGORY_OPTIONS}
+                    onChange={setNewItemCategory}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stores</label>
+                  <StoreSelect
+                    label="Stores"
+                    values={newItemStores}
+                    options={storeOptions}
+                    onToggle={toggleNewItemStore}
+                  />
                 </div>
 
                 {addError && <p className="form-error">{addError}</p>}
@@ -641,11 +670,7 @@ export default function ShoppingList({ onShoppingChanged }) {
                   className="btn-save-meal"
                   disabled={savingItem}
                 >
-                  {savingItem
-                    ? 'Saving...'
-                    : editingItem
-                    ? 'Save changes'
-                    : 'Add to List'}
+                  {savingItem ? 'Saving...' : 'Add to List'}
                 </button>
                 <button
                   type="button"

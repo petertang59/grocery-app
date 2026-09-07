@@ -3,12 +3,14 @@ import { supabase } from './supabaseClient';
 import MealManager from './components/MealManager';
 import ShoppingList from './components/ShoppingList';
 import Groceries from './components/Groceries';
+import Settings from './components/Settings';
 import { useTheme } from './useTheme';
 import './App.css';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
-  const [view, setView] = useState('meals'); // 'meals' | 'groceries' | 'shopping'
+  // 'meals' | 'shopping' | 'groceries' | 'settings'
+  const [view, setView] = useState('meals');
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shoppingCount, setShoppingCount] = useState(0);
@@ -183,23 +185,14 @@ function App() {
             </svg>
             <span className="nav-label">Groceries</span>
           </button>
-        </nav>
-
-        <div className="sidebar-footer">
           <button
-            type="button"
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label={
-              theme === 'dark'
-                ? 'Dark mode. Switch to light mode'
-                : 'Light mode. Switch to dark mode'
-            }
-            title={
-              theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-            }
+            className={`nav-btn ${view === 'settings' ? 'active' : ''}`}
+            onClick={() => setView('settings')}
+            aria-label="Settings"
+            title={sidebarCollapsed ? 'Settings' : undefined}
           >
             <svg
+              className="nav-icon"
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -210,17 +203,14 @@ function App() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              {theme === 'dark' ? (
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              ) : (
-                <>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-                </>
-              )}
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
             </svg>
+            <span className="nav-label">Settings</span>
           </button>
+        </nav>
 
+        <div className="sidebar-footer">
           <button
             type="button"
             className="sidebar-collapse-btn"
@@ -266,9 +256,14 @@ function App() {
                 onShoppingChanged={loadShoppingStatus}
               />
             )}
-            {view === 'groceries' && <Groceries />}
+            {view === 'groceries' && (
+              <Groceries onMealsChanged={fetchMeals} />
+            )}
             {view === 'shopping' && (
               <ShoppingList onShoppingChanged={loadShoppingStatus} />
+            )}
+            {view === 'settings' && (
+              <Settings theme={theme} onToggleTheme={toggleTheme} />
             )}
           </>
         )}
