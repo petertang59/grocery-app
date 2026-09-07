@@ -7,6 +7,7 @@ import ModalHeader from './ModalHeader';
 import ConfirmModal from './ConfirmModal';
 import { guessCategory } from '../categories';
 import { useCategories } from '../useCategories';
+import { useStores } from '../useStores';
 import { groceryKey, syncGroceryItemStores } from '../groceryItems';
 import { shouldFlipMenu } from '../menuPlacement';
 import './Groceries.css';
@@ -22,8 +23,8 @@ const COLUMNS = [
 export default function Groceries({ onMealsChanged }) {
   const toast = useToast();
   const { options: CATEGORY_OPTIONS } = useCategories();
+  const { stores } = useStores();
   const [items, setItems] = useState([]);
-  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
@@ -41,7 +42,6 @@ export default function Groceries({ onMealsChanged }) {
 
   useEffect(() => {
     loadItems();
-    loadStores();
   }, []);
 
   // Close on Escape and lock background scroll while the modal is open.
@@ -186,18 +186,6 @@ export default function Groceries({ onMealsChanged }) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const loadStores = async () => {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id, name')
-      .order('name');
-    if (error) {
-      console.error('Error loading stores:', error);
-      return;
-    }
-    setStores(data || []);
   };
 
   const loadItems = async () => {

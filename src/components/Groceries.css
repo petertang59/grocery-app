@@ -187,19 +187,21 @@
 }
 
 .col-name {
-  font-size: 16px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
-.col-meals {
+/* Scoped past `.groceries-table td`, which would otherwise win on
+   specificity and paint these full-strength. */
+.groceries-table .col-meals {
   color: var(--text-light);
   white-space: nowrap;
 }
 
 /* The editable cells sit flush with the plain ones despite the trigger's
-   own padding. */
-.col-category,
-.col-stores {
+   own padding. The category trigger inherits this colour. */
+.groceries-table .col-category,
+.groceries-table .col-stores {
   color: var(--text-light);
   white-space: nowrap;
 }

@@ -6,12 +6,15 @@ import ModalHeader from './ModalHeader';
 import { useToast } from './ToastProvider';
 import { guessCategory } from '../categories';
 import { useCategories } from '../useCategories';
+import { useStores } from '../useStores';
 import {
   resolveGroceryItems,
   groceryKey,
   syncGroceryItemStores,
+  fetchCatalogue,
 } from '../groceryItems';
 import StoreSelect from './StoreSelect';
+import IngredientInput from './IngredientInput';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
@@ -21,6 +24,7 @@ const NO_STORE = 'No store';
 export default function ShoppingList({ onShoppingChanged }) {
   const toast = useToast();
   const { categories, options: CATEGORY_OPTIONS } = useCategories();
+  const { stores: storeOptions } = useStores();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -33,7 +37,10 @@ export default function ShoppingList({ onShoppingChanged }) {
   const [addError, setAddError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
   const [newItemStores, setNewItemStores] = useState([]);
-  const [storeOptions, setStoreOptions] = useState([]);
+  // Set once the user edits a field themselves, so prefilling from the
+  // catalogue stops overwriting their choice as they keep typing.
+  const [detailsTouched, setDetailsTouched] = useState(false);
+  const [catalogue, setCatalogue] = useState([]);
   const [activeTab, setActiveTab] = useState(ALL_STORES);
   const observerRef = useRef(null);
 
@@ -83,24 +90,6 @@ export default function ShoppingList({ onShoppingChanged }) {
   };
 
   // Load the whole shopping list and keep it in sync across devices.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('stores')
-        .select('id, name')
-        .order('name');
-      if (error) {
-        console.error('Error loading stores:', error);
-        return;
-      }
-      if (!cancelled) setStoreOptions(data || []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   useEffect(() => {
     loadShoppingList();
 
@@ -312,14 +301,22 @@ export default function ShoppingList({ onShoppingChanged }) {
       <div className="item-body">
         <span className="item-name">{group.name}</span>
         {group.mealList.length > 0 && (
-          <span className="item-meals-list">
-            <span className="item-for">For:</span>
-            {group.mealList.map((mealName) => (
-              <span key={mealName} className="item-meals">
-                {mealName}
-              </span>
-            ))}
-          </span>
+          <>
+            <span className="item-meals-list">
+              <span className="item-for">For:</span>
+              {group.mealList.map((mealName) => (
+                <span key={mealName} className="item-meals">
+                  {mealName}
+                </span>
+              ))}
+            </span>
+            {/* Narrow screens get the tally instead of a wrapping pill list;
+                CSS picks one, so both stay in the markup. */}
+            <span className="item-meals-summary">
+              For {group.mealList.length}{' '}
+              {group.mealList.length === 1 ? 'meal' : 'meals'}
+            </span>
+          </>
         )}
       </div>
       {/* Removing is the only thing a row does here, so it gets the one
@@ -338,17 +335,48 @@ export default function ShoppingList({ onShoppingChanged }) {
     </li>
   );
 
-  const openAddModal = () => {
-    setEditingItem(null);
+  // Refreshed each time the modal opens so a name typed here matches whatever
+  // the catalogue holds right now.
+  const openAddModal = async () => {
     setNewItemName('');
     setNewItemCategory('');
     setNewItemStores([]);
+    setDetailsTouched(false);
     setAddError('');
     setShowAddModal(true);
+
+    try {
+      setCatalogue(await fetchCatalogue());
+    } catch (error) {
+      console.error('Error loading the grocery catalogue:', error);
+    }
+  };
+
+  // Choosing a suggestion is an explicit pick, so it fills the details in even
+  // if the fields were edited by hand first.
+  const pickCatalogueItem = (item) => {
+    setNewItemName(item.name);
+    setNewItemCategory(item.category);
+    setNewItemStores(item.stores);
+    setDetailsTouched(false);
+    setAddError('');
+  };
+
+  // Typing the name of an item that already exists fills in its category and
+  // stores, so saving can't blank out details the item already had.
+  const onNameChange = (value) => {
+    setNewItemName(value);
+    if (addError) setAddError('');
+    if (detailsTouched) return;
+
+    const match = catalogue.find((item) => item.name_key === groceryKey(value));
+    setNewItemCategory(match?.category ?? '');
+    setNewItemStores(match?.stores ?? []);
   };
 
   const closeAddModal = () => {
     setShowAddModal(false);
+    setDetailsTouched(false);
     setNewItemName('');
     setNewItemCategory('');
     setNewItemStores([]);
@@ -356,6 +384,7 @@ export default function ShoppingList({ onShoppingChanged }) {
   };
 
   const toggleNewItemStore = (storeName) => {
+    setDetailsTouched(true);
     setNewItemStores((prev) =>
       prev.includes(storeName)
         ? prev.filter((name) => name !== storeName)
@@ -628,16 +657,14 @@ export default function ShoppingList({ onShoppingChanged }) {
               <div className="modal-body">
                 <div className="form-group">
                   <label htmlFor="newItemName">Name</label>
-                  <input
+                  <IngredientInput
                     id="newItemName"
-                    type="text"
+                    label="Item name"
                     placeholder="e.g., Paper towels"
                     value={newItemName}
-                    onChange={(e) => {
-                      setNewItemName(e.target.value);
-                      if (addError) setAddError('');
-                    }}
-                    autoFocus
+                    onChange={onNameChange}
+                    onPick={pickCatalogueItem}
+                    catalogue={catalogue}
                   />
                 </div>
 
@@ -647,7 +674,10 @@ export default function ShoppingList({ onShoppingChanged }) {
                     label="Category"
                     value={newItemCategory || guessCategory(newItemName)}
                     options={CATEGORY_OPTIONS}
-                    onChange={setNewItemCategory}
+                    onChange={(category) => {
+                      setDetailsTouched(true);
+                      setNewItemCategory(category);
+                    }}
                   />
                 </div>
 

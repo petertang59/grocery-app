@@ -63,7 +63,7 @@
 
 /* The shared text-field look, used by every modal in the app. */
 .form-group input,
-.category-input {
+.settings-list-input {
   padding: 0.75rem;
   background: var(--bg-card);
   color: var(--text);
@@ -75,13 +75,13 @@
 
 .form-group input::placeholder,
 .ingredient-row input::placeholder,
-.category-input::placeholder {
+.settings-list-input::placeholder {
   color: var(--text-light);
   opacity: 1;
 }
 
 .form-group input:focus,
-.category-input:focus {
+.settings-list-input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-tint);
@@ -235,16 +235,43 @@
   font-size: 1.05rem;
 }
 
+/* Holds the summary row, and the meals that have been added below it. */
 .meals-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-bottom: 1.5rem;
-  padding: 0.75rem 1.25rem;
   background: var(--bg-card);
   color: var(--text);
   border-radius: 0.75rem;
   box-shadow: var(--shadow);
+}
+
+.meals-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+}
+
+/* Flush inside the card: the card already supplies the frame. The grid paints
+   its own background, so it has to follow the card's bottom corners. */
+.meals-progress .meals-grid {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* Only the bottom of the last row follows the card's corners. */
+.meals-progress .meal-card:first-child {
+  border-radius: 0;
+}
+
+.meals-progress .meal-card:last-child {
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+}
+
+.meals-all-added {
+  color: var(--text-light);
+  font-size: 16px;
 }
 
 .meals-progress-icon {
@@ -293,7 +320,9 @@
   margin-bottom: 24px;
 }
 
-/* One container; the cards are rows divided by a single hairline. */
+/* One container; the cards are rows divided by a single hairline. The rows
+   round their own outer corners rather than being clipped, so an open row
+   menu isn't cut off by the container. */
 .meals-grid {
   display: flex;
   flex-direction: column;
@@ -301,8 +330,16 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  /* Clips the first and last rows to the rounded corners. */
-  overflow: hidden;
+}
+
+.meal-card:first-child {
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+}
+
+.meal-card:last-child {
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
 }
 
 .meal-card {
@@ -330,14 +367,6 @@
   background: var(--bg);
 }
 
-.meal-card.in-list {
-  background: var(--primary-tint);
-}
-
-.meal-card.in-list:hover {
-  background: var(--primary-tint-strong);
-}
-
 .meal-card-info {
   flex: 1;
   min-width: 0;
@@ -346,7 +375,7 @@
 .meal-card h3 {
   color: var(--text);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .ingredients-list {
@@ -391,13 +420,19 @@
   transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
+/* The row no longer carries the green, so the button does it alone. */
 .btn-shop.in-list {
   color: var(--primary-dark);
+  background: var(--primary-tint);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 
 .btn-shop:hover {
   background: var(--primary-tint);
+}
+
+.btn-shop.in-list:hover {
+  background: var(--primary-tint-strong);
 }
 
 /* :focus-visible only — a bare :focus ring lingers after a mouse click. */

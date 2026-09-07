@@ -358,6 +358,13 @@
   font-size: 12px;
 }
 
+/* The mobile stand-in for the pill list. */
+.item-meals-summary {
+  display: none;
+  color: var(--text-light);
+  font-size: 12px;
+}
+
 .item-menu {
   position: relative;
   flex: 0 0 auto;
@@ -496,12 +503,21 @@
     align-items: center;
   }
 
-  /* Stack the name over its pills so every row is the same height, rather
-     than only the ones long enough to wrap. */
+  /* Stack the name over the meal summary so every row is the same height,
+     rather than only the ones long enough to wrap. */
   .list-item .item-body {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.35rem;
+  }
+
+  /* Naming every meal costs more width than it's worth on a phone. */
+  .item-meals-list {
+    display: none;
+  }
+
+  .item-meals-summary {
+    display: inline;
   }
 
   .add-item-form {

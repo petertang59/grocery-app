@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import CategoryManager from './CategoryManager';
+import StoreManager from './StoreManager';
 import './Settings.css';
 
 // The two things worth managing outside the day-to-day lists. The cards are
@@ -23,6 +24,7 @@ const SECTIONS = [
     key: 'stores',
     title: 'Stores',
     description: 'The shops you buy from, and the tabs on your shopping list.',
+    ready: true,
     icon: (
       <>
         <path d="M3 9h18l-1.5-5.5A1 1 0 0 0 18.5 3h-13a1 1 0 0 0-1 .5L3 9Z" />
@@ -136,6 +138,11 @@ export default function Settings({ theme, onToggleTheme }) {
 
       <CategoryManager
         open={openSection === 'categories'}
+        onClose={() => setOpenSection(null)}
+      />
+
+      <StoreManager
+        open={openSection === 'stores'}
         onClose={() => setOpenSection(null)}
       />
     </div>

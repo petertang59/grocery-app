@@ -103,7 +103,6 @@ function App() {
       className={`app-container${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
     >
       <aside className="sidebar">
-        <h1 className="app-title" aria-label="Groceries">🛒</h1>
         <nav className="nav-buttons">
           <button
             className={`nav-btn ${view === 'meals' ? 'active' : ''}`}

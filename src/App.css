@@ -107,12 +107,6 @@ body {
   z-index: 10;
 }
 
-.app-title {
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: var(--text);
-}
-
 .nav-buttons {
   display: flex;
   flex-direction: column;
@@ -193,7 +187,6 @@ body {
   padding-right: 0.75rem;
 }
 
-.sidebar-collapsed .app-title,
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .nav-count {
   display: none;
@@ -272,10 +265,6 @@ body {
     border-right: none;
     border-top: 1px solid var(--border);
     z-index: 50;
-  }
-
-  .app-title {
-    display: none;
   }
 
   .nav-count,

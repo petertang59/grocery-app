@@ -12,6 +12,8 @@ export default function IngredientInput({
   onPick,
   catalogue,
   label,
+  id,
+  placeholder = 'e.g., Eggs',
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -73,7 +75,8 @@ export default function IngredientInput({
     <div className="ingredient-input" ref={rootRef}>
       <input
         type="text"
-        placeholder="e.g., Eggs"
+        id={id}
+        placeholder={placeholder}
         aria-label={label}
         role="combobox"
         aria-expanded={showing}

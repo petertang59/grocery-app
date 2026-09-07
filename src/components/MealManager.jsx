@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from './ConfirmModal';
 import CategorySelect from './CategorySelect';
 import { useToast } from './ToastProvider';
 import { guessCategory } from '../categories';
 import { useCategories } from '../useCategories';
+import { useStores } from '../useStores';
 import {
   resolveGroceryItems,
   groceryKey,
@@ -33,6 +34,7 @@ export default function MealManager({
   setShoppingMealIds,
 }) {
   const { options: CATEGORY_OPTIONS } = useCategories();
+  const { stores: storeOptions } = useStores();
   const toast = useToast();
   const [mealName, setMealName] = useState('');
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
@@ -44,8 +46,6 @@ export default function MealManager({
   const [formError, setFormError] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuUp, setMenuUp] = useState(false);
-  const mealsGridRef = useRef(null);
-  const [storeOptions, setStoreOptions] = useState([]);
   const [catalogue, setCatalogue] = useState([]);
 
   const isEditing = editingMealId !== null;
@@ -124,21 +124,9 @@ export default function MealManager({
     }
   };
 
-  // Store options come from the stores table, so the list stays in step with
-  // whatever exists rather than being hardcoded here.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('stores')
-        .select('id, name')
-        .order('name');
-      if (error) {
-        console.error('Error loading stores:', error);
-        return;
-      }
-      if (!cancelled) setStoreOptions(data || []);
-
       try {
         const items = await fetchCatalogue();
         if (!cancelled) setCatalogue(items);
@@ -191,7 +179,8 @@ export default function MealManager({
       setOpenMenuId(null);
       return;
     }
-    setMenuUp(shouldFlipMenu(button, mealsGridRef.current));
+    // Nothing clips the menus now, so the window is the only bound.
+    setMenuUp(shouldFlipMenu(button, null));
     setOpenMenuId(mealId);
   };
 
@@ -382,7 +371,7 @@ export default function MealManager({
 
       if (storeEdits.length > 0) {
         try {
-          setCatalogueStores(await fetchCatalogueStores());
+          setCatalogue(await fetchCatalogue());
         } catch (refreshError) {
           console.error('Error refreshing item stores:', refreshError);
         }
@@ -421,65 +410,74 @@ export default function MealManager({
     }
   };
 
-  return (
-    <div className="meal-manager">
-      <section className="meals-list-section">
-        <div className="meals-list-header">
-          <h2>Your Meals</h2>
-          <button
-            type="button"
-            className="btn-create-meal"
-            onClick={openCreateModal}
-            aria-label="Create Meal"
-          >
-            <span className="create-plus" aria-hidden="true">+</span>
-            <span className="btn-create-label">Create Meal</span>
-          </button>
-        </div>
-        {meals.length === 0 ? (
-          <p className="empty-state">
-            No meals yet! Click "Create Meal" to get started.
-          </p>
-        ) : (
-          <>
-            <div className="meals-progress">
-              <svg
-                className="meals-progress-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-              <p className="meals-progress-text">
-                {addedCount} {addedCount === 1 ? 'meal' : 'meals'} in shopping
-                list
-              </p>
-              <button
-                type="button"
-                className="btn-clear-meals"
-                onClick={() => setShowClearConfirm(true)}
-                disabled={addedCount === 0}
-              >
-                Clear List
-              </button>
-            </div>
+  // FLIP: remember where every card was, then after the re-render slide it
+  // from there to wherever it landed. Positions are in document space so a
+  // scroll between renders doesn't read as movement.
+  const cardNodes = useRef(new Map());
+  const cardPositions = useRef(new Map());
+  const lastLayout = useRef(null);
 
-            <p className="meals-count">
-              Showing {meals.length} {meals.length === 1 ? 'meal' : 'meals'}
-            </p>
-            <div className="meals-grid" ref={mealsGridRef}>
-            {meals.map((meal) => (
+  useLayoutEffect(() => {
+    const reduced = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    // Only a change in which meals sit where is worth animating. Re-renders
+    // from anything else (opening a row menu, say) would otherwise animate
+    // the sub-pixel drift between measurements.
+    const layout = `${meals.map((m) => m.id).join(',')}|${[...shoppingMealIds]
+      .sort()
+      .join(',')}`;
+    const moved = lastLayout.current !== null && lastLayout.current !== layout;
+    lastLayout.current = layout;
+
+    for (const [id, node] of cardNodes.current) {
+      const rect = node.getBoundingClientRect();
+      const next = {
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX,
+      };
+      const prev = cardPositions.current.get(id);
+      cardPositions.current.set(id, next);
+
+      if (!prev || !moved || reduced) continue;
+
+      const dx = prev.left - next.left;
+      const dy = prev.top - next.top;
+      // Sub-pixel shifts are reflow noise, not a move worth animating.
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+
+      node.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px)` },
+          { transform: 'none' },
+        ],
+        { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    }
+
+    // Drop meals that are no longer rendered so the maps don't grow forever.
+    for (const id of cardPositions.current.keys()) {
+      if (!cardNodes.current.has(id)) cardPositions.current.delete(id);
+    }
+  });
+
+  const setCardNode = (mealId) => (node) => {
+    if (node) cardNodes.current.set(mealId, node);
+    else cardNodes.current.delete(mealId);
+  };
+
+  // Meals on the shopping list move up into the progress card, so the list
+  // below is what's still to choose from.
+  const addedMeals = meals.filter((meal) => shoppingMealIds.includes(meal.id));
+  const remainingMeals = meals.filter(
+    (meal) => !shoppingMealIds.includes(meal.id)
+  );
+
+  const renderMealCard = (meal) => (
               <div
                 key={meal.id}
+                ref={setCardNode(meal.id)}
                 className={`meal-card${
                   shoppingMealIds.includes(meal.id) ? ' in-list' : ''
                 }${editingMealId === meal.id ? ' editing' : ''}`}
@@ -568,8 +566,81 @@ export default function MealManager({
                   )}
                 </div>
               </div>
-            ))}
+  );
+
+  return (
+    <div className="meal-manager">
+      <section className="meals-list-section">
+        <div className="meals-list-header">
+          <h2>Your Meals</h2>
+          <button
+            type="button"
+            className="btn-create-meal"
+            onClick={openCreateModal}
+            aria-label="Create Meal"
+          >
+            <span className="create-plus" aria-hidden="true">+</span>
+            <span className="btn-create-label">Create Meal</span>
+          </button>
+        </div>
+        {meals.length === 0 ? (
+          <p className="empty-state">
+            No meals yet! Click "Create Meal" to get started.
+          </p>
+        ) : (
+          <>
+            <div className="meals-progress">
+              <div className="meals-progress-head">
+              <svg
+                className="meals-progress-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              <p className="meals-progress-text">
+                {addedCount} {addedCount === 1 ? 'meal' : 'meals'} in shopping
+                list
+              </p>
+              <button
+                type="button"
+                className="btn-clear-meals"
+                onClick={() => setShowClearConfirm(true)}
+                disabled={addedCount === 0}
+              >
+                Clear List
+              </button>
+              </div>
+
+              {addedMeals.length > 0 && (
+                <div className="meals-grid">
+                  {addedMeals.map(renderMealCard)}
+                </div>
+              )}
             </div>
+
+            <p className="meals-count">
+              Showing {remainingMeals.length}{' '}
+              {remainingMeals.length === 1 ? 'meal' : 'meals'}
+            </p>
+            {remainingMeals.length > 0 ? (
+              <div className="meals-grid">
+                {remainingMeals.map(renderMealCard)}
+              </div>
+            ) : (
+              <p className="meals-all-added">
+                Every meal is in your shopping list.
+              </p>
+            )}
           </>
         )}
       </section>
@@ -602,7 +673,10 @@ export default function MealManager({
                   placeholder="e.g., Spaghetti Carbonara"
                   value={mealName}
                   onChange={(e) => setMealName(e.target.value)}
-                  autoFocus
+                  /* Focus an empty field on create; leave an existing name
+                     alone so opening a meal doesn't put it in edit-ready
+                     state. */
+                  autoFocus={!isEditing}
                 />
               </div>
 

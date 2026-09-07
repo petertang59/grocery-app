@@ -1,4 +1,4 @@
-.category-rows {
+.settings-list {
   display: flex;
   flex-direction: column;
   list-style: none;
@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-.category-row {
+.settings-list-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -17,11 +17,18 @@
   border-bottom: 1px solid var(--border);
 }
 
-.category-row:last-child {
+.settings-list-row:last-child {
   border-bottom: none;
 }
 
-.category-name {
+/* Optional leading icon; the stores list doesn't use one. */
+.settings-list-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--text-light);
+}
+
+.settings-list-name {
   flex: 1;
   min-width: 0;
   color: var(--text);
@@ -31,7 +38,7 @@
   white-space: nowrap;
 }
 
-.category-count {
+.settings-list-count {
   flex-shrink: 0;
   color: var(--text-light);
   font-size: 0.85rem;
@@ -39,12 +46,12 @@
 }
 
 /* Box and focus ring come from the shared field rule in MealManager.css. */
-.category-input {
+.settings-list-input {
   flex: 1;
   min-width: 0;
 }
 
-.category-action {
+.settings-list-action {
   flex-shrink: 0;
   padding: 0.35rem 0.6rem;
   background: transparent;
@@ -56,36 +63,36 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.category-action:hover:not(:disabled) {
+.settings-list-action:hover:not(:disabled) {
   background: var(--count-pill);
   color: var(--text);
 }
 
-.category-action.primary {
+.settings-list-action.primary {
   color: var(--primary-dark);
 }
 
-.category-action.danger:hover:not(:disabled) {
+.settings-list-action.danger:hover:not(:disabled) {
   background: var(--danger-tint);
   color: var(--danger);
 }
 
-.category-action:disabled {
+.settings-list-action:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.category-action:focus,
-.category-action:focus-visible {
+.settings-list-action:focus,
+.settings-list-action:focus-visible {
   outline: none;
 }
 
 /* The add row reads as part of the list, not a row of data in it. */
-.category-add {
+.settings-list-add {
   background: var(--bg);
 }
 
-.category-add-btn {
+.settings-list-add-btn {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -100,16 +107,16 @@
   cursor: pointer;
 }
 
-.category-add-btn:hover {
+.settings-list-add-btn:hover {
   text-decoration: underline;
 }
 
-.category-add-btn:focus,
-.category-add-btn:focus-visible {
+.settings-list-add-btn:focus,
+.settings-list-add-btn:focus-visible {
   outline: none;
 }
 
-.category-empty {
+.settings-list-empty {
   color: var(--text-light);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -117,7 +124,7 @@
 
 @media (max-width: 768px) {
   /* The count is the first thing to go when the row runs out of room. */
-  .category-count {
+  .settings-list-count {
     display: none;
   }
 }

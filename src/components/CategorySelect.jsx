@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { CategoryIcon } from '../categoryIcons';
 import './CategorySelect.css';
 
 // A custom dropdown so the menu can be styled to match the app (a native
@@ -49,7 +50,10 @@ export default function CategorySelect({
         aria-expanded={open}
         aria-label={label}
       >
-        <span className="category-value">{value}</span>
+        <span className="category-value">
+          <CategoryIcon name={value} size={16} className="category-icon" />
+          <span className="category-label">{value}</span>
+        </span>
         <svg
           className="category-caret"
           width="16"
@@ -82,7 +86,14 @@ export default function CategorySelect({
                 setOpen(false);
               }}
             >
-              {option}
+              <span className="category-value">
+                <CategoryIcon
+                  name={option}
+                  size={16}
+                  className="category-icon"
+                />
+                <span className="category-label">{option}</span>
+              </span>
               {option === value && (
                 <svg
                   width="16"

@@ -1,31 +1,25 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { fetchCategories } from '../categories';
-import { CategoryIcon } from '../categoryIcons';
 import ModalHeader from './ModalHeader';
 import ConfirmModal from './ConfirmModal';
 import { useToast } from './ToastProvider';
 import './SettingsList.css';
 
-// Where groceries land when their category is deleted, and what guessCategory
-// falls back to — so it can't be removed or renamed away.
-const FALLBACK = 'Other';
-
 const key = (name) => (name ?? '').trim().toLowerCase();
 
-export default function CategoryManager({ open, onClose, onChanged }) {
+export default function StoreManager({ open, onClose, onChanged }) {
   const toast = useToast();
   const [rows, setRows] = useState([]);
-  const [counts, setCounts] = useState({});
+  // storeId -> groceries stocked there, and how many list no other store.
+  const [usage, setUsage] = useState({});
   const [loading, setLoading] = useState(true);
-  const [missingTable, setMissingTable] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draftName, setDraftName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -52,29 +46,45 @@ export default function CategoryManager({ open, onClose, onChanged }) {
     setNewName('');
     setError('');
 
-    const categories = await fetchCategories();
-    setMissingTable(!categories);
-    setRows(categories ?? []);
+    const { data: stores, error: storesError } = await supabase
+      .from('stores')
+      .select('id, name')
+      .order('name');
 
-    // Counted from the catalogue rather than stored, so it can't drift.
-    const { data, error: itemsError } = await supabase
-      .from('grocery_items')
-      .select('category');
-
-    if (itemsError) {
-      console.error('Error counting groceries:', itemsError);
+    if (storesError) {
+      console.error('Error loading stores:', storesError);
     } else {
-      const tally = {};
-      for (const item of data ?? []) {
-        const k = key(item.category) || key(FALLBACK);
-        tally[k] = (tally[k] ?? 0) + 1;
+      setRows(stores || []);
+    }
+
+    const { data: links, error: linksError } = await supabase
+      .from('grocery_item_stores')
+      .select('grocery_item_id, store_id');
+
+    if (linksError) {
+      console.error('Error counting groceries:', linksError);
+    } else {
+      // How many stores each grocery has, so a delete can say which of them
+      // would be left with none at all.
+      const perItem = {};
+      for (const link of links ?? []) {
+        perItem[link.grocery_item_id] = (perItem[link.grocery_item_id] ?? 0) + 1;
       }
-      setCounts(tally);
+
+      const tally = {};
+      for (const link of links ?? []) {
+        const entry = tally[link.store_id] ?? { count: 0, onlyStore: 0 };
+        entry.count += 1;
+        if (perItem[link.grocery_item_id] === 1) entry.onlyStore += 1;
+        tally[link.store_id] = entry;
+      }
+      setUsage(tally);
     }
     setLoading(false);
   };
 
   const startEdit = (row) => {
+    setAdding(false);
     setEditingId(row.id);
     setDraftName(row.name);
     setError('');
@@ -86,13 +96,12 @@ export default function CategoryManager({ open, onClose, onChanged }) {
     setError('');
   };
 
-  // Renaming has to carry the groceries with it: the item rows store the
-  // category as text, so they'd point at a name that no longer exists.
+  // Everything joins on store_id, so the name is the only thing to change.
   const saveEdit = async (row) => {
     const name = draftName.trim();
 
     if (!name) {
-      setError('Give the category a name.');
+      setError('Give the store a name.');
       return;
     }
     if (name === row.name) {
@@ -100,38 +109,25 @@ export default function CategoryManager({ open, onClose, onChanged }) {
       return;
     }
     if (rows.some((r) => r.id !== row.id && key(r.name) === key(name))) {
-      setError(`“${name}” is already a category.`);
+      setError(`“${name}” is already a store.`);
       return;
     }
 
     setSaving(true);
     try {
       const { error: renameError } = await supabase
-        .from('grocery_categories')
+        .from('stores')
         .update({ name })
         .eq('id', row.id);
 
       if (renameError) throw renameError;
 
-      const { error: itemsError } = await supabase
-        .from('grocery_items')
-        .update({ category: name })
-        .eq('category', row.name);
-
-      if (itemsError) throw itemsError;
-
-      // Ingredient rows keep their own copy, used until an item is linked.
-      await supabase
-        .from('ingredients')
-        .update({ category: name })
-        .eq('category', row.name);
-
       cancelEdit();
       await load();
       onChanged?.();
     } catch (err) {
-      console.error('Error renaming category:', err);
-      setError('Couldn’t rename that category. Try again!');
+      console.error('Error renaming store:', err);
+      setError('Couldn’t rename that store. Try again!');
     } finally {
       setSaving(false);
     }
@@ -150,65 +146,39 @@ export default function CategoryManager({ open, onClose, onChanged }) {
     setError('');
   };
 
-  const addCategory = async () => {
+  const addStore = async () => {
     const name = newName.trim();
 
     if (!name) {
-      setError('Give the category a name.');
+      setError('Give the store a name.');
       return;
     }
     if (rows.some((r) => key(r.name) === key(name))) {
-      setError(`“${name}” is already a category.`);
+      setError(`“${name}” is already a store.`);
       return;
     }
 
     setSaving(true);
     try {
-      const last = Math.max(0, ...rows.map((r) => r.sort_order ?? 0));
-
-      const { error: addError } = await supabase
-        .from('grocery_categories')
-        .insert({ name, sort_order: last + 1 });
-
+      const { error: addError } = await supabase.from('stores').insert({ name });
       if (addError) throw addError;
-
-      // Other is the catch-all, so it stays at the end of the aisle order
-      // rather than being overtaken by whatever was just added.
-      const fallbackRow = rows.find((r) => key(r.name) === key(FALLBACK));
-      if (fallbackRow) {
-        await supabase
-          .from('grocery_categories')
-          .update({ sort_order: last + 2 })
-          .eq('id', fallbackRow.id);
-      }
 
       cancelAdd();
       await load();
       onChanged?.();
     } catch (err) {
-      console.error('Error adding category:', err);
-      setError('Couldn’t add that category. Try again!');
+      console.error('Error adding store:', err);
+      setError('Couldn’t add that store. Try again!');
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteCategory = async (row) => {
+  // grocery_item_stores cascades on store_id, so the links go with the row.
+  const deleteStore = async (row) => {
     try {
-      const { error: moveError } = await supabase
-        .from('grocery_items')
-        .update({ category: FALLBACK })
-        .eq('category', row.name);
-
-      if (moveError) throw moveError;
-
-      await supabase
-        .from('ingredients')
-        .update({ category: FALLBACK })
-        .eq('category', row.name);
-
       const { error: deleteError } = await supabase
-        .from('grocery_categories')
+        .from('stores')
         .delete()
         .eq('id', row.id);
 
@@ -217,14 +187,26 @@ export default function CategoryManager({ open, onClose, onChanged }) {
       await load();
       onChanged?.();
     } catch (err) {
-      console.error('Error deleting category:', err);
-      toast('Couldn’t delete that category. Try again!', 'error');
+      console.error('Error deleting store:', err);
+      toast('Couldn’t delete that store. Try again!', 'error');
     }
   };
 
   if (!open) return null;
 
-  const countFor = (row) => counts[key(row.name)] ?? 0;
+  const usageFor = (row) => usage[row.id] ?? { count: 0, onlyStore: 0 };
+
+  const deleteMessage = (row) => {
+    if (row.count === 0) {
+      return 'No groceries are bought there, so nothing else changes.';
+    }
+    const items = `${row.count} ${row.count === 1 ? 'grocery' : 'groceries'}`;
+    const stranded =
+      row.onlyStore > 0
+        ? ` ${row.onlyStore} of them would be left with no store at all, and show under “No store” on your shopping list.`
+        : '';
+    return `${items} would no longer list ${row.name}.${stranded} This can’t be undone.`;
+  };
 
   return (
     <>
@@ -233,24 +215,18 @@ export default function CategoryManager({ open, onClose, onChanged }) {
           className="modal"
           role="dialog"
           aria-modal="true"
-          aria-label="Grocery Categories"
+          aria-label="Stores"
           onClick={(e) => e.stopPropagation()}
         >
-          <ModalHeader title="Grocery Categories" onClose={onClose} />
+          <ModalHeader title="Stores" onClose={onClose} />
 
           <div className="modal-body">
             {loading ? (
-              <p className="settings-list-empty">Loading your categories...</p>
-            ) : missingTable ? (
-              <p className="settings-list-empty">
-                Categories aren’t set up in your database yet. Run the
-                003_grocery_categories migration in Supabase, then reopen this.
-              </p>
+              <p className="settings-list-empty">Loading your stores...</p>
             ) : (
               <ul className="settings-list">
                 {rows.map((row) => {
-                  const count = countFor(row);
-                  const protectedRow = key(row.name) === key(FALLBACK);
+                  const { count } = usageFor(row);
 
                   return (
                     <li className="settings-list-row" key={row.id}>
@@ -295,12 +271,6 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                         </>
                       ) : (
                         <>
-                          <span
-                            className="settings-list-icon"
-                            aria-hidden="true"
-                          >
-                            <CategoryIcon name={row.name} />
-                          </span>
                           <span className="settings-list-name">{row.name}</span>
                           <span className="settings-list-count">
                             {count} {count === 1 ? 'grocery' : 'groceries'}
@@ -315,12 +285,8 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                           <button
                             type="button"
                             className="settings-list-action danger"
-                            onClick={() => setPendingDelete({ ...row, count })}
-                            disabled={protectedRow}
-                            title={
-                              protectedRow
-                                ? 'Other is where uncategorised groceries go, so it stays.'
-                                : undefined
+                            onClick={() =>
+                              setPendingDelete({ ...row, ...usageFor(row) })
                             }
                           >
                             Delete
@@ -337,8 +303,8 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                       <input
                         type="text"
                         className="settings-list-input"
-                        placeholder="e.g., Snacks"
-                        aria-label="New category name"
+                        placeholder="e.g., Costco"
+                        aria-label="New store name"
                         value={newName}
                         onChange={(e) => {
                           setNewName(e.target.value);
@@ -347,7 +313,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            addCategory();
+                            addStore();
                           } else if (e.key === 'Escape') {
                             e.stopPropagation();
                             cancelAdd();
@@ -358,7 +324,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                       <button
                         type="button"
                         className="settings-list-action primary"
-                        onClick={addCategory}
+                        onClick={addStore}
                         disabled={saving}
                       >
                         {saving ? 'Adding...' : 'Add'}
@@ -378,7 +344,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                       className="settings-list-add-btn"
                       onClick={startAdd}
                     >
-                      <span aria-hidden="true">+</span> Add category
+                      <span aria-hidden="true">+</span> Add store
                     </button>
                   )}
                 </li>
@@ -392,21 +358,13 @@ export default function CategoryManager({ open, onClose, onChanged }) {
 
       <ConfirmModal
         open={!!pendingDelete}
-        title={pendingDelete ? `Delete ${pendingDelete.name}?` : 'Delete category?'}
-        message={
-          pendingDelete
-            ? pendingDelete.count > 0
-              ? `${pendingDelete.count} ${
-                  pendingDelete.count === 1 ? 'grocery moves' : 'groceries move'
-                } to ${FALLBACK}. This can’t be undone.`
-              : 'Nothing is using it, so nothing else changes.'
-            : ''
-        }
+        title={pendingDelete ? `Delete ${pendingDelete.name}?` : 'Delete store?'}
+        message={pendingDelete ? deleteMessage(pendingDelete) : ''}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         destructive
         onConfirm={() => {
-          deleteCategory(pendingDelete);
+          deleteStore(pendingDelete);
           setPendingDelete(null);
         }}
         onCancel={() => setPendingDelete(null)}
