@@ -35,7 +35,8 @@
   justify-content: center;
   gap: 0.35rem;
   flex-shrink: 0;
-  padding: 0.75rem 1.25rem;
+  height: 32px;
+  padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
   border: none;
@@ -96,8 +97,14 @@
   box-shadow: var(--shadow);
 }
 
+/* Fixed layout so the columns keep their widths whatever the rows hold —
+   sorting or an extra store pill can't shift them around. */
 .groceries-table {
   width: 100%;
+  table-layout: fixed;
+  /* Below this the columns would be too narrow to read, so the wrapper
+     scrolls sideways instead of squashing them. */
+  min-width: 660px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -187,13 +194,18 @@
 }
 
 .col-name {
+  width: 32%;
   font-size: 14px;
   white-space: nowrap;
+  /* Fixed columns can't grow for a long name, so it truncates instead. */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Scoped past `.groceries-table td`, which would otherwise win on
    specificity and paint these full-strength. */
 .groceries-table .col-meals {
+  width: 14%;
   color: var(--text-light);
   white-space: nowrap;
 }
@@ -206,9 +218,17 @@
   white-space: nowrap;
 }
 
+.groceries-table .col-category {
+  width: 22%;
+}
+
+.groceries-table .col-stores {
+  width: 28%;
+}
+
 /* The kebab sits in its own narrow trailing column. */
 .col-actions {
-  width: 1%;
+  width: 3.5rem;
   padding-top: 0;
   padding-bottom: 0;
   text-align: right;
@@ -234,8 +254,8 @@
 
   /* Icon-only square in the header — no room for the label. */
   .btn-create-item {
-    width: 2.625rem;
-    height: 2.625rem;
+    width: 32px;
+    height: 32px;
     padding: 0;
   }
 

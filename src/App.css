@@ -234,8 +234,15 @@ body {
   flex: 1;
   min-width: 0;
   padding: 2rem;
-  max-width: 1200px;
   width: 100%;
+}
+
+/* Every page is a full-width header followed by .page-content. The header
+   stretches with the main area; the content below it is capped and centred. */
+.page-content {
+  max-width: 960px;
+  margin-inline: auto;
+  min-width: 0;
 }
 
 .loading {

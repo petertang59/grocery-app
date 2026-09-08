@@ -41,7 +41,12 @@ export default function ConfirmModal({
       >
         <ModalHeader title={title} />
         {message && <p className="confirm-message">{message}</p>}
+        {/* Cancel first so the primary action sits on the right, matching the
+            form modals, and so tabbing reaches it last. */}
         <div className="confirm-actions">
+          <button type="button" className="confirm-btn cancel" onClick={onCancel}>
+            {cancelLabel}
+          </button>
           <button
             type="button"
             className={`confirm-btn ${destructive ? 'destructive' : 'primary'}`}
@@ -49,9 +54,6 @@ export default function ConfirmModal({
             autoFocus
           >
             {confirmLabel}
-          </button>
-          <button type="button" className="confirm-btn cancel" onClick={onCancel}>
-            {cancelLabel}
           </button>
         </div>
       </div>

@@ -372,174 +372,177 @@ export default function Groceries({ onMealsChanged }) {
             type="button"
             className="btn-create-item"
             onClick={openCreate}
-            aria-label="Create Item"
+            aria-label="Add Item"
           >
             <span className="create-item-plus" aria-hidden="true">+</span>
-            <span className="btn-create-item-label">Create Item</span>
+            <span className="btn-create-item-label">Add Item</span>
           </button>
         </div>
 
-        {loading ? (
-          <p className="groceries-empty">Loading your groceries...</p>
-        ) : sorted.length === 0 ? (
-          <div className="groceries-empty">
-            <p>No grocery items yet.</p>
-            <p className="groceries-empty-hint">
-              Items appear here as you add ingredients to your meals.
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="groceries-count">
-              Showing {sorted.length} {sorted.length === 1 ? 'item' : 'items'}
-            </p>
+        <div className="page-content">
+          {loading ? (
+            <p className="groceries-empty">Loading your groceries...</p>
+          ) : sorted.length === 0 ? (
+            <div className="groceries-empty">
+              <p>No grocery items yet.</p>
+              <p className="groceries-empty-hint">
+                Items appear here as you add ingredients to your meals.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="groceries-count">
+                Showing {sorted.length} {sorted.length === 1 ? 'item' : 'items'}
+              </p>
 
-            <div className="groceries-table-wrap" ref={tableWrapRef}>
-              <table className="groceries-table">
-                <thead>
-                  <tr>
-                    {COLUMNS.map((column) => (
-                      <th
-                        key={column.key}
-                        scope="col"
-                        aria-sort={
-                          sortKey === column.key
-                            ? sortDir === 'asc'
-                              ? 'ascending'
-                              : 'descending'
-                            : 'none'
-                        }
-                      >
-                        <button
-                          type="button"
-                          className={`th-sort${
-                            sortKey === column.key ? ' active' : ''
-                          }`}
-                          onClick={() => toggleSort(column.key)}
-                        >
-                          {column.label}
-                          <svg
-                            className={`sort-arrow${
-                              sortKey === column.key && sortDir === 'desc'
-                                ? ' desc'
-                                : ''
-                            }`}
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <polyline points="18 15 12 9 6 15" />
-                          </svg>
-                        </button>
-                      </th>
-                    ))}
-                    <th
-                      scope="col"
-                      className="col-actions"
-                      aria-label="Actions"
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="grocery-row"
-                      onClick={() => openEdit(row)}
-                    >
-                      <td className="col-name">{row.name}</td>
-                      <td
-                        className="col-category"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <CategorySelect
-                          variant="inline"
-                          label={`Category for ${row.name}`}
-                          value={row.category}
-                          options={CATEGORY_OPTIONS}
-                          onChange={(category) =>
-                            changeCategory(row.id, category)
+              <div className="groceries-table-wrap" ref={tableWrapRef}>
+                <table className="groceries-table">
+                  <thead>
+                    <tr>
+                      {COLUMNS.map((column) => (
+                        <th
+                          key={column.key}
+                          className={`col-${column.key}`}
+                          scope="col"
+                          aria-sort={
+                            sortKey === column.key
+                              ? sortDir === 'asc'
+                                ? 'ascending'
+                                : 'descending'
+                              : 'none'
                           }
-                        />
-                      </td>
-                      <td className="col-meals">
-                        {row.meals.length > 0
-                          ? `${row.meals.length} ${
-                              row.meals.length === 1 ? 'meal' : 'meals'
-                            }`
-                          : '—'}
-                      </td>
-                      <td
-                        className="col-stores"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <StoreSelect
-                          variant="inline"
-                          label={`Stores for ${row.name}`}
-                          values={row.stores}
-                          options={stores}
-                          onToggle={(store) => toggleStore(row.id, store)}
-                        />
-                      </td>
-                      <td
-                        className="col-actions"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="grocery-row-menu">
+                        >
                           <button
                             type="button"
-                            className="btn-more"
-                            aria-label={`More options for ${row.name}`}
-                            aria-haspopup="true"
-                            aria-expanded={openMenuId === row.id}
-                            onClick={(e) => toggleMenu(row.id, e.currentTarget)}
+                            className={`th-sort${
+                              sortKey === column.key ? ' active' : ''
+                            }`}
+                            onClick={() => toggleSort(column.key)}
                           >
-                            ⋮
-                          </button>
-                          {openMenuId === row.id && (
-                            <div
-                              className={`dropdown-menu${menuUp ? ' up' : ''}`}
-                              role="menu"
+                            {column.label}
+                            <svg
+                              className={`sort-arrow${
+                                sortKey === column.key && sortDir === 'desc'
+                                  ? ' desc'
+                                  : ''
+                              }`}
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
                             >
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="dropdown-item"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  openEdit(row);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="dropdown-item danger"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  setPendingDelete(row);
-                                }}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                              <polyline points="18 15 12 9 6 15" />
+                            </svg>
+                          </button>
+                        </th>
+                      ))}
+                      <th
+                        scope="col"
+                        className="col-actions"
+                        aria-label="Actions"
+                      />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                  </thead>
+                  <tbody>
+                    {sorted.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="grocery-row"
+                        onClick={() => openEdit(row)}
+                      >
+                        <td className="col-name">{row.name}</td>
+                        <td
+                          className="col-category"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <CategorySelect
+                            variant="inline"
+                            label={`Category for ${row.name}`}
+                            value={row.category}
+                            options={CATEGORY_OPTIONS}
+                            onChange={(category) =>
+                              changeCategory(row.id, category)
+                            }
+                          />
+                        </td>
+                        <td className="col-meals">
+                          {row.meals.length > 0
+                            ? `${row.meals.length} ${
+                                row.meals.length === 1 ? 'meal' : 'meals'
+                              }`
+                            : '—'}
+                        </td>
+                        <td
+                          className="col-stores"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <StoreSelect
+                            variant="inline"
+                            label={`Stores for ${row.name}`}
+                            values={row.stores}
+                            options={stores}
+                            onToggle={(store) => toggleStore(row.id, store)}
+                          />
+                        </td>
+                        <td
+                          className="col-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="grocery-row-menu">
+                            <button
+                              type="button"
+                              className="btn-more"
+                              aria-label={`More options for ${row.name}`}
+                              aria-haspopup="true"
+                              aria-expanded={openMenuId === row.id}
+                              onClick={(e) => toggleMenu(row.id, e.currentTarget)}
+                            >
+                              ⋮
+                            </button>
+                            {openMenuId === row.id && (
+                              <div
+                                className={`dropdown-menu${menuUp ? ' up' : ''}`}
+                                role="menu"
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="dropdown-item"
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    openEdit(row);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="dropdown-item danger"
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    setPendingDelete(row);
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       {showCreate && (
@@ -552,11 +555,11 @@ export default function Groceries({ onMealsChanged }) {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label={editingItem ? 'Edit Item' : 'Create an Item'}
+            aria-label={editingItem ? 'Edit Item' : 'Add Item'}
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader
-              title={editingItem ? 'Edit Item' : 'Create an Item'}
+              title={editingItem ? 'Edit Item' : 'Add Item'}
               onClose={closeCreate}
             />
 
@@ -606,7 +609,7 @@ export default function Groceries({ onMealsChanged }) {
                     ? 'Saving...'
                     : editingItem
                     ? 'Save changes'
-                    : 'Create Item'}
+                    : 'Add'}
                 </button>
                 <button
                   type="button"

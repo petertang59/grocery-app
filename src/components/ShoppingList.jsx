@@ -15,6 +15,7 @@ import {
 } from '../groceryItems';
 import StoreSelect from './StoreSelect';
 import IngredientInput from './IngredientInput';
+import { CategoryIcon } from '../categoryIcons';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
@@ -497,142 +498,157 @@ export default function ShoppingList({ onShoppingChanged }) {
           </button>
         </div>
 
-        {!loading && groups.length > 0 && (
-          <p className="meals-added-count">
-            {mealCount} {mealCount === 1 ? 'meal' : 'meals'} added
-          </p>
-        )}
-
-        {!loading && tabs.length > 1 && (
-          <div className="store-tabs" role="tablist" aria-label="Filter by store">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={tab === currentTab}
-                className={`store-tab${tab === currentTab ? ' active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-                <span className="store-tab-count">{remainingFor(tab)}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading ? (
-          <p className="empty-list">
-            <span>Loading your list...</span>
-          </p>
-        ) : groups.length === 0 ? (
-          <div className="empty-list">
-            <p>Your shopping list is empty.</p>
-            <p className="empty-hint">
-              Go to the <strong>Meals</strong> tab and tap
-              "Add to Shopping List" on the meals you're cooking this week.
+        <div className="page-content">
+          {!loading && groups.length > 0 && (
+            <p className="meals-added-count">
+              {mealCount} {mealCount === 1 ? 'meal' : 'meals'} added
             </p>
-          </div>
-        ) : (
-          <>
-            <div className="progress" ref={setTopProgressRef}>
-              <div className="progress-top">
+          )}
+
+          {!loading && tabs.length > 1 && (
+            <div className="store-tabs" role="tablist" aria-label="Filter by store">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === currentTab}
+                  className={`store-tab${tab === currentTab ? ' active' : ''}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab}
+                  <span className="store-tab-count">{remainingFor(tab)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loading ? (
+            <p className="empty-list">
+              <span>Loading your list...</span>
+            </p>
+          ) : groups.length === 0 ? (
+            <div className="empty-list">
+              <p>Your shopping list is empty.</p>
+              <p className="empty-hint">
+                Go to the <strong>Meals</strong> tab and tap
+                "Add to Shopping List" on the meals you're cooking this week.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="progress" ref={setTopProgressRef}>
+                <div className="progress-top">
+                  <p className="progress-text">
+                    {grabbedCount} of {visibleCount} items grabbed
+                  </p>
+                  <button
+                    className="btn-clear"
+                    onClick={() => setShowClearConfirm(true)}
+                  >
+                    Clear List
+                  </button>
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Always mounted so it can slide in and out. */}
+              <div
+                className={`progress progress-fixed${
+                  showFixedProgress ? ' visible' : ''
+                }`}
+              >
                 <p className="progress-text">
                   {grabbedCount} of {visibleCount} items grabbed
                 </p>
+                {/* Only shown on mobile, where this bar replaces the one at
+                    the top of the list that normally carries Clear List. */}
                 <button
-                  className="btn-clear"
+                  className="btn-clear btn-clear-docked"
                   onClick={() => setShowClearConfirm(true)}
                 >
                   Clear List
                 </button>
-              </div>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Always mounted so it can slide in and out. */}
-            <div
-              className={`progress progress-fixed${
-                showFixedProgress ? ' visible' : ''
-              }`}
-            >
-              <p className="progress-text">
-                {grabbedCount} of {visibleCount} items grabbed
-              </p>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-            {categorySections.map((section) => (
-              <div className="category-section" key={section.category}>
-                <button
-                  type="button"
-                  className={`category-header${
-                    collapsed.has(section.category) ? ' collapsed' : ''
-                  }`}
-                  onClick={() => toggleCategory(section.category)}
-                  aria-expanded={!collapsed.has(section.category)}
-                >
-                  <span className="category-title">
-                    {section.category}{' '}
-                    <span className="category-count">
-                      ({section.pending.length} remaining)
-                    </span>
-                  </span>
-                  <svg
-                    className="category-chevron"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <div
-                  className={`category-body${
-                    collapsed.has(section.category) ? ' collapsed' : ''
-                  }`}
-                >
-                  <div className="category-body-inner">
-                    {section.pending.length > 0 && (
-                      <ul className="items-list">
-                        {section.pending.map(renderItem)}
-                      </ul>
-                    )}
-
-                    {section.grabbed.length > 0 && (
-                      <div className="grabbed-section">
-                        <p className="grabbed-heading">
-                          Grabbed
-                          <span className="grabbed-count">
-                            ({section.grabbed.length})
-                          </span>
-                        </p>
-                        <ul className="items-list">
-                          {section.grabbed.map(renderItem)}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${(grabbedCount / Math.max(1, visibleCount)) * 100}%` }}
+                  ></div>
                 </div>
               </div>
-            ))}
-          </>
-        )}
+              {categorySections.map((section) => (
+                <div className="category-section" key={section.category}>
+                  <button
+                    type="button"
+                    className={`category-header${
+                      collapsed.has(section.category) ? ' collapsed' : ''
+                    }`}
+                    onClick={() => toggleCategory(section.category)}
+                    aria-expanded={!collapsed.has(section.category)}
+                  >
+                    <CategoryIcon
+                      name={section.category}
+                      size={16}
+                      className="category-section-icon"
+                    />
+                    <span className="category-title">
+                      {section.category}{' '}
+                      <span className="category-count">
+                        ({section.pending.length} remaining)
+                      </span>
+                    </span>
+                    <svg
+                      className="category-chevron"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  <div
+                    className={`category-body${
+                      collapsed.has(section.category) ? ' collapsed' : ''
+                    }`}
+                  >
+                    <div className="category-body-inner">
+                      {section.pending.length > 0 && (
+                        <ul className="items-list">
+                          {section.pending.map(renderItem)}
+                        </ul>
+                      )}
+
+                      {section.grabbed.length > 0 && (
+                        <div className="grabbed-section">
+                          <p className="grabbed-heading">
+                            Grabbed
+                            <span className="grabbed-count">
+                              ({section.grabbed.length})
+                            </span>
+                          </p>
+                          <ul className="items-list">
+                            {section.grabbed.map(renderItem)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       </section>
 
       {showAddModal && (
@@ -645,11 +661,11 @@ export default function ShoppingList({ onShoppingChanged }) {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Add an Item"
+            aria-label="Add Item"
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader
-              title="Add an Item"
+              title="Add Item"
               onClose={closeAddModal}
             />
 
@@ -700,7 +716,7 @@ export default function ShoppingList({ onShoppingChanged }) {
                   className="btn-save-meal"
                   disabled={savingItem}
                 >
-                  {savingItem ? 'Saving...' : 'Add to List'}
+                  {savingItem ? 'Saving...' : 'Add'}
                 </button>
                 <button
                   type="button"

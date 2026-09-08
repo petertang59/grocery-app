@@ -4,10 +4,15 @@
   display: grid;
   gap: 2rem;
   padding-bottom: 4rem;
+  min-width: 0;
 }
 
+/* Grid children default to min-width: auto, which lets a wide row — the store
+   tabs, once there are a few stores — push the page sideways instead of
+   scrolling inside its own box. */
 .list-section {
   padding: 0;
+  min-width: 0;
 }
 
 .list-header {
@@ -58,7 +63,8 @@
   justify-content: center;
   gap: 0.35rem;
   flex-shrink: 0;
-  padding: 0.75rem 1.25rem;
+  height: 32px;
+  padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
   border: none;
@@ -194,8 +200,7 @@
 .category-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem;
   width: 100%;
   padding: 0;
   background: transparent;
@@ -208,6 +213,18 @@
   color: var(--primary-dark);
   margin-bottom: 1.25rem;
   transition: margin-bottom 0.28s ease;
+}
+
+.category-section-icon {
+  flex-shrink: 0;
+}
+
+/* Takes up the slack so the chevron stays pinned to the right. A button
+   centres its text by default, which shows once the span fills the row. */
+.category-title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 
 .category-header.collapsed {
@@ -435,6 +452,11 @@
   font-size: 0.9rem;
 }
 
+/* Clear List lives in the card at the top of the list on desktop. */
+.btn-clear-docked {
+  display: none;
+}
+
 .progress-fixed .progress-bar {
   flex: 1;
   height: 0.5rem;
@@ -475,22 +497,41 @@
     gap: 1.5rem;
   }
 
+  /* On a phone the docked bar is the only progress bar, so it's always
+     there rather than sliding in once the top one scrolls away. */
+  .progress {
+    display: none;
+  }
+
   .progress-fixed {
+    display: flex;
+    flex-wrap: wrap;
     left: 0;
     right: 0;
     /* Sits flush on top of the bottom nav rather than behind it. The nav is
        3.875rem tall plus whatever inset the device reports. */
     bottom: calc(3.875rem + env(safe-area-inset-bottom, 0px));
     max-width: none;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 1.25rem;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
   }
 
   .progress-fixed .progress-text {
+    flex: 1;
     font-size: 1rem;
   }
 
+  /* Sits beside the count, with the bar on its own line below. */
+  .btn-clear-docked {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
   .progress-fixed .progress-bar {
+    flex-basis: 100%;
     height: 0.4rem;
   }
 
@@ -528,8 +569,8 @@
 
   /* Icon-only square in the header — no room for the label. */
   .btn-add-item {
-    width: 2.625rem;
-    height: 2.625rem;
+    width: 32px;
+    height: 32px;
     padding: 0;
   }
 

@@ -153,7 +153,11 @@
 }
 
 .btn-save-meal {
-  padding: 0.75rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
   border: none;
@@ -173,8 +177,11 @@
   cursor: not-allowed;
 }
 
+/* See the note on .list-section: grid children need this to stay inside the
+   page rather than being sized by their widest content. */
 .meals-list-section {
   padding: 0;
+  min-width: 0;
 }
 
 .meals-list-header {
@@ -198,7 +205,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.75rem 1.25rem;
+  height: 32px;
+  padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
   border: none;
@@ -572,7 +580,11 @@
 }
 
 .btn-cancel-edit {
-  padding: calc(0.75rem - 1px) 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 1rem;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
@@ -649,8 +661,8 @@
 
   /* Icon-only square in the header — no room for the label. */
   .btn-create-meal {
-    width: 2.625rem;
-    height: 2.625rem;
+    width: 32px;
+    height: 32px;
     padding: 0;
   }
 
