@@ -4,11 +4,14 @@ import MealManager from './components/MealManager';
 import ShoppingList from './components/ShoppingList';
 import Groceries from './components/Groceries';
 import Settings from './components/Settings';
+import Login from './components/Login';
 import { useTheme } from './useTheme';
+import { useSession } from './useSession';
 import './App.css';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
+  const { session, loading: sessionLoading } = useSession();
   // 'meals' | 'shopping' | 'groceries' | 'settings'
   const [view, setView] = useState('meals');
   const [meals, setMeals] = useState([]);
@@ -18,13 +21,20 @@ function App() {
   const [statusLoaded, setStatusLoaded] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Fetch meals on mount
+  // Every fetch and subscription below waits for a session: under RLS an
+  // anonymous query returns nothing, and these would never retry once the
+  // user signed in.
+
+  // Fetch meals once signed in
   useEffect(() => {
+    if (!session) return;
     fetchMeals();
-  }, []);
+  }, [session]);
 
   // Set up real-time subscription for meals
   useEffect(() => {
+    if (!session) return;
+
     const subscription = supabase
       .channel('meals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, () => {
@@ -35,11 +45,13 @@ function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [session]);
 
   // Keep the shopping-list status (nav count + which meals are on the list)
   // live, and load it up front so meal cards render in the right state.
   useEffect(() => {
+    if (!session) return;
+
     loadShoppingStatus();
 
     const subscription = supabase
@@ -54,7 +66,7 @@ function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [session]);
 
   const loadShoppingStatus = async () => {
     const { data, error } = await supabase
@@ -97,6 +109,10 @@ function App() {
       setLoading(false);
     }
   };
+
+  // Nothing renders — and no query runs — until we know who's asking.
+  if (sessionLoading) return <div className="session-loading" />;
+  if (!session) return <Login />;
 
   return (
     <div
@@ -262,7 +278,11 @@ function App() {
               <ShoppingList onShoppingChanged={loadShoppingStatus} />
             )}
             {view === 'settings' && (
-              <Settings theme={theme} onToggleTheme={toggleTheme} />
+              <Settings
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                email={session.user.email}
+              />
             )}
           </>
         )}
