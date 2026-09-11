@@ -32,9 +32,24 @@ export default function MealManager({
   onShoppingChanged,
   shoppingMealIds,
   setShoppingMealIds,
+  refreshKey = 0,
 }) {
-  const { options: CATEGORY_OPTIONS } = useCategories();
-  const { stores: storeOptions } = useStores();
+  const { options: CATEGORY_OPTIONS, reload: reloadCategories } = useCategories();
+  const { stores: storeOptions, reload: reloadStores } = useStores();
+
+  // The meals themselves are refetched by App; this picks up the catalogue,
+  // categories and stores behind the ingredient pickers.
+  useEffect(() => {
+    if (!refreshKey) return;
+    reloadCategories();
+    reloadStores();
+    fetchCatalogue()
+      .then(setCatalogue)
+      .catch((error) =>
+        console.error('Error refreshing the grocery catalogue:', error)
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
   const toast = useToast();
   const [mealName, setMealName] = useState('');
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
@@ -571,7 +586,7 @@ export default function MealManager({
   return (
     <div className="meal-manager">
       <section className="meals-list-section">
-        <div className="meals-list-header">
+        <div className="page-header meals-list-header">
           <h2>Your Meals</h2>
           <button
             type="button"

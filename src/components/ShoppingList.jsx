@@ -22,10 +22,21 @@ import './ShoppingList.css';
 const ALL_STORES = 'All';
 const NO_STORE = 'No store';
 
-export default function ShoppingList({ onShoppingChanged }) {
+export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const toast = useToast();
-  const { categories, options: CATEGORY_OPTIONS } = useCategories();
-  const { stores: storeOptions } = useStores();
+  const { categories, options: CATEGORY_OPTIONS, reload: reloadCategories } =
+    useCategories();
+  const { stores: storeOptions, reload: reloadStores } = useStores();
+
+  // A pull-to-refresh bumps refreshKey; skip the initial render, which the
+  // mount effects already cover.
+  useEffect(() => {
+    if (!refreshKey) return;
+    loadShoppingList();
+    reloadCategories();
+    reloadStores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -41,6 +52,7 @@ export default function ShoppingList({ onShoppingChanged }) {
   // Set once the user edits a field themselves, so prefilling from the
   // catalogue stops overwriting their choice as they keep typing.
   const [detailsTouched, setDetailsTouched] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [catalogue, setCatalogue] = useState([]);
   const [activeTab, setActiveTab] = useState(ALL_STORES);
   const observerRef = useRef(null);
@@ -298,8 +310,21 @@ export default function ShoppingList({ onShoppingChanged }) {
         id={`item-${group.key}`}
         aria-label={group.name}
       />
-      {/* Not a <label>: only the checkbox itself should toggle the item. */}
-      <div className="item-body">
+      {/* Not a <label>: only the checkbox itself should toggle the item. The
+          rest of the row opens the editor. */}
+      <div
+        className="item-body"
+        role="button"
+        tabIndex={0}
+        aria-label={`Edit ${group.name}`}
+        onClick={() => openEditModal(group)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openEditModal(group);
+          }
+        }}
+      >
         <span className="item-name">{group.name}</span>
         {group.mealList.length > 0 && (
           <>
@@ -320,9 +345,7 @@ export default function ShoppingList({ onShoppingChanged }) {
           </>
         )}
       </div>
-      {/* Removing is the only thing a row does here, so it gets the one
-          button rather than a menu. Names and categories are edited on the
-          Groceries page. */}
+      {/* Removing is the only thing this button does; editing is the row. */}
       <div className="item-menu" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -339,6 +362,7 @@ export default function ShoppingList({ onShoppingChanged }) {
   // Refreshed each time the modal opens so a name typed here matches whatever
   // the catalogue holds right now.
   const openAddModal = async () => {
+    setEditingItem(null);
     setNewItemName('');
     setNewItemCategory('');
     setNewItemStores([]);
@@ -351,6 +375,19 @@ export default function ShoppingList({ onShoppingChanged }) {
     } catch (error) {
       console.error('Error loading the grocery catalogue:', error);
     }
+  };
+
+  // Clicking a row edits the catalogue entry behind it, so a rename or a store
+  // change follows the item everywhere it appears, not just on this list.
+  const openEditModal = (group) => {
+    if (!group.groceryItemId) return;
+    setEditingItem(group);
+    setNewItemName(group.name);
+    setNewItemCategory(group.category);
+    setNewItemStores(group.groceryStores);
+    setDetailsTouched(true);
+    setAddError('');
+    setShowAddModal(true);
   };
 
   // Choosing a suggestion is an explicit pick, so it fills the details in even
@@ -377,6 +414,7 @@ export default function ShoppingList({ onShoppingChanged }) {
 
   const closeAddModal = () => {
     setShowAddModal(false);
+    setEditingItem(null);
     setDetailsTouched(false);
     setNewItemName('');
     setNewItemCategory('');
@@ -411,6 +449,59 @@ export default function ShoppingList({ onShoppingChanged }) {
 
     setSavingItem(true);
     setAddError('');
+
+    // Editing writes to the catalogue entry, which is what every view reads.
+    if (editingItem) {
+      try {
+        const category = newItemCategory || guessCategory(name);
+        const renamed = groceryKey(name) !== groceryKey(editingItem.name);
+
+        if (renamed) {
+          const { data: clash } = await supabase
+            .from('grocery_items')
+            .select('id')
+            .eq('name_key', groceryKey(name))
+            .neq('id', editingItem.groceryItemId);
+
+          if (clash?.length) {
+            setAddError(`“${name}” is already in your groceries.`);
+            setSavingItem(false);
+            return;
+          }
+        }
+
+        const { error: itemError } = await supabase
+          .from('grocery_items')
+          .update({ name, category })
+          .eq('id', editingItem.groceryItemId);
+
+        if (itemError) throw itemError;
+
+        // The ingredient rows keep their own copy of the name and category,
+        // which is what the meal editor shows, so they move together.
+        const { error: ingredientError } = await supabase
+          .from('ingredients')
+          .update({ name, category })
+          .eq('grocery_item_id', editingItem.groceryItemId);
+
+        if (ingredientError) throw ingredientError;
+
+        await syncGroceryItemStores(
+          editingItem.groceryItemId,
+          storeIdsFor(newItemStores)
+        );
+
+        closeAddModal();
+        loadShoppingList();
+        onShoppingChanged?.();
+      } catch (error) {
+        console.error('Error saving item:', error);
+        setAddError('Couldn’t save those changes. Try again!');
+      } finally {
+        setSavingItem(false);
+      }
+      return;
+    }
 
     try {
       const category = newItemCategory || guessCategory(name);
@@ -485,7 +576,7 @@ export default function ShoppingList({ onShoppingChanged }) {
   return (
     <div className="shopping-list">
       <section className="list-section">
-        <div className="list-header">
+        <div className="page-header list-header">
           <h2>Shopping List</h2>
           <button
             type="button"
@@ -661,11 +752,11 @@ export default function ShoppingList({ onShoppingChanged }) {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Add Item"
+            aria-label={editingItem ? 'Edit Item' : 'Add Item'}
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader
-              title="Add Item"
+              title={editingItem ? 'Edit Item' : 'Add Item'}
               onClose={closeAddModal}
             />
 
@@ -716,7 +807,11 @@ export default function ShoppingList({ onShoppingChanged }) {
                   className="btn-save-meal"
                   disabled={savingItem}
                 >
-                  {savingItem ? 'Saving...' : 'Add'}
+                  {savingItem
+                    ? 'Saving...'
+                    : editingItem
+                    ? 'Save changes'
+                    : 'Add'}
                 </button>
                 <button
                   type="button"

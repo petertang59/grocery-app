@@ -20,10 +20,10 @@ const COLUMNS = [
   { key: 'stores', label: 'Stores', numeric: false },
 ];
 
-export default function Groceries({ onMealsChanged }) {
+export default function Groceries({ onMealsChanged, refreshKey = 0 }) {
   const toast = useToast();
-  const { options: CATEGORY_OPTIONS } = useCategories();
-  const { stores } = useStores();
+  const { options: CATEGORY_OPTIONS, reload: reloadCategories } = useCategories();
+  const { stores, reload: reloadStores } = useStores();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState('name');
@@ -43,6 +43,15 @@ export default function Groceries({ onMealsChanged }) {
   useEffect(() => {
     loadItems();
   }, []);
+
+  // A pull-to-refresh bumps refreshKey; skip the initial render.
+  useEffect(() => {
+    if (!refreshKey) return;
+    loadItems();
+    reloadCategories();
+    reloadStores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Close on Escape and lock background scroll while the modal is open.
   useEffect(() => {
@@ -154,6 +163,16 @@ export default function Groceries({ onMealsChanged }) {
           .eq('id', editingItem.id);
 
         if (error) throw error;
+
+        // The ingredient rows carry their own copy of the name and category,
+        // and that copy is what the meal editor shows, so it moves too.
+        const { error: ingredientError } = await supabase
+          .from('ingredients')
+          .update({ name, category })
+          .eq('grocery_item_id', editingItem.id);
+
+        if (ingredientError) throw ingredientError;
+
         await syncGroceryItemStores(editingItem.id, storeIds);
       } else {
         const { data: created, error } = await supabase
@@ -240,6 +259,17 @@ export default function Groceries({ onMealsChanged }) {
       console.error('Error updating category:', error);
       toast('Couldn’t change that category. Try again!', 'error');
       setItems(previous);
+      return;
+    }
+
+    // Keep the ingredient rows' own copy in step, same as a full edit does.
+    const { error: ingredientError } = await supabase
+      .from('ingredients')
+      .update({ category })
+      .eq('grocery_item_id', itemId);
+
+    if (ingredientError) {
+      console.error('Error updating ingredient categories:', ingredientError);
     }
   };
 
@@ -366,7 +396,7 @@ export default function Groceries({ onMealsChanged }) {
   return (
     <div className="groceries">
       <section className="groceries-section">
-        <div className="groceries-header">
+        <div className="page-header groceries-header">
           <h2>Groceries</h2>
           <button
             type="button"

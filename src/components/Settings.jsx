@@ -43,13 +43,42 @@ export default function Settings({ theme, onToggleTheme, email }) {
   return (
     <div className="settings">
       <section className="settings-section">
-        <div className="settings-header">
+        <div className="page-header settings-header">
           <h2>Settings</h2>
         </div>
 
         <div className="page-content">
           <div className="settings-cards">
-            {SECTIONS.map((section) => {
+              <div className="settings-card">
+              <span className="settings-card-icon" aria-hidden="true">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <div className="settings-card-body">
+                <h3>Account</h3>
+                <p>{email ? `Signed in as ${email}.` : 'Signed in.'}</p>
+              </div>
+              <button
+                type="button"
+                className="settings-card-action"
+                onClick={() => supabase.auth.signOut()}
+              >
+                Sign out
+              </button>
+            </div>
+
+          {SECTIONS.map((section) => {
               // Sections without an editor yet stay inert rather than offering a
               // button that does nothing.
               const Card = section.ready ? 'button' : 'div';
@@ -100,35 +129,6 @@ export default function Settings({ theme, onToggleTheme, email }) {
               </Card>
               );
             })}
-
-            <div className="settings-card">
-              <span className="settings-card-icon" aria-hidden="true">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </span>
-              <div className="settings-card-body">
-                <h3>Account</h3>
-                <p>{email ? `Signed in as ${email}.` : 'Signed in.'}</p>
-              </div>
-              <button
-                type="button"
-                className="settings-card-action"
-                onClick={() => supabase.auth.signOut()}
-              >
-                Sign out
-              </button>
-            </div>
 
             <div className="settings-card">
               <span className="settings-card-icon" aria-hidden="true">

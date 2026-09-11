@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import MealManager from './components/MealManager';
 import ShoppingList from './components/ShoppingList';
@@ -7,6 +7,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import { useTheme } from './useTheme';
 import { useSession } from './useSession';
+import { usePullToRefresh } from './usePullToRefresh';
 import './App.css';
 
 function App() {
@@ -20,6 +21,15 @@ function App() {
   const [shoppingMealIds, setShoppingMealIds] = useState([]);
   const [statusLoaded, setStatusLoaded] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Bumped by a pull-to-refresh; the views reload their own data off it.
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchMeals(), loadShoppingStatus()]);
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  const { pull, refreshing, ready } = usePullToRefresh(refreshAll);
 
   // Every fetch and subscription below waits for a session: under RLS an
   // anonymous query returns nothing, and these would never retry once the
@@ -118,6 +128,32 @@ function App() {
     <div
       className={`app-container${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}
     >
+      {(pull > 0 || refreshing) && (
+        <div
+          className={`pull-indicator${refreshing ? ' spinning' : ''}`}
+          style={{ transform: `translate(-50%, ${pull}px)` }}
+          role="status"
+          aria-label={refreshing ? 'Refreshing' : 'Pull to refresh'}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={
+              refreshing ? undefined : { transform: `rotate(${pull * 3}deg)` }
+            }
+          >
+            <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+            {ready && <polyline points="21 3 21 9 15 9" />}
+          </svg>
+        </div>
+      )}
       <aside className="sidebar">
         <nav className="nav-buttons">
           <button
@@ -264,6 +300,7 @@ function App() {
           <>
             {view === 'meals' && (
               <MealManager
+                refreshKey={refreshKey}
                 meals={meals}
                 onMealAdded={fetchMeals}
                 shoppingMealIds={shoppingMealIds}
@@ -272,10 +309,13 @@ function App() {
               />
             )}
             {view === 'groceries' && (
-              <Groceries onMealsChanged={fetchMeals} />
+              <Groceries onMealsChanged={fetchMeals} refreshKey={refreshKey} />
             )}
             {view === 'shopping' && (
-              <ShoppingList onShoppingChanged={loadShoppingStatus} />
+              <ShoppingList
+                onShoppingChanged={loadShoppingStatus}
+                refreshKey={refreshKey}
+              />
             )}
             {view === 'settings' && (
               <Settings

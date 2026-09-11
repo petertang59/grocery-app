@@ -11,16 +11,6 @@
   min-width: 0;
 }
 
-.groceries-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1.5rem;
-  gap: 1rem;
-}
-
 .groceries-header h2 {
   color: var(--text);
   font-size: 1.5rem;
