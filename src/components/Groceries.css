@@ -185,7 +185,7 @@
 
 .col-name {
   width: 32%;
-  font-size: 14px;
+  font-size: 16px;
   white-space: nowrap;
   /* Fixed columns can't grow for a long name, so it truncates instead. */
   overflow: hidden;
