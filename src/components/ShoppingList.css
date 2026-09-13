@@ -36,9 +36,11 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.btn-clear:hover {
-  background: var(--danger-tint);
-  color: var(--danger);
+@media (hover: hover) {
+  .btn-clear:hover {
+    background: var(--danger-tint);
+    color: var(--danger);
+  }
 }
 
 .btn-clear:focus,
@@ -75,8 +77,10 @@
   line-height: 1;
 }
 
-.btn-add-item:hover {
-  background: var(--primary-solid-hover);
+@media (hover: hover) {
+  .btn-add-item:hover {
+    background: var(--primary-solid-hover);
+  }
 }
 
 .btn-add-item:focus,
@@ -122,7 +126,7 @@
 .store-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -148,9 +152,11 @@
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.store-tab:hover {
-  border-color: var(--border-hover);
-  color: var(--text);
+@media (hover: hover) {
+  .store-tab:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
 }
 
 .store-tab.active {
@@ -172,6 +178,13 @@
   font-weight: 600;
 }
 
+.list-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
 .meals-added-count {
   display: none;
   color: var(--text-light);
@@ -179,7 +192,8 @@
   margin-bottom: 0.75rem;
 }
 
-.category-section {
+/* The two cards: what's still to get, and what's already in the cart. */
+.list-card {
   margin-bottom: 1.5rem;
   background: var(--bg-card);
   padding: 24px;
@@ -187,94 +201,82 @@
   box-shadow: var(--shadow);
 }
 
-.category-header {
+.list-card-heading {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  color: var(--primary-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.list-card-count {
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.list-card-empty {
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+.completed-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   padding: 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--primary-dark);
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.75rem;
   transition: margin-bottom 0.28s ease;
 }
 
-.category-section-icon {
-  flex-shrink: 0;
-}
-
-/* Takes up the slack so the chevron stays pinned to the right. A button
-   centres its text by default, which shows once the span fills the row. */
-.category-title {
+/* A button centres its content by default; the heading takes the slack so
+   the chevron sits on the right. */
+.completed-header .list-card-heading {
   flex: 1;
   min-width: 0;
-  text-align: left;
+  margin-bottom: 0;
+  color: var(--text-light);
 }
 
-.category-header.collapsed {
+.completed-header.collapsed {
   margin-bottom: 0;
 }
 
-.category-body {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.28s ease;
-}
-
-.category-body.collapsed {
-  grid-template-rows: 0fr;
-}
-
-.category-body > .category-body-inner {
-  overflow: hidden;
-  min-height: 0;
-}
-
-/* Completed items, parked below what's still to get. */
-.grabbed-section {
-  margin-top: 1.25rem;
-}
-
-.grabbed-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-light);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.grabbed-count {
-  font-weight: 400;
-}
-
-.category-header:focus,
-.category-header:focus-visible {
+.completed-header:focus,
+.completed-header:focus-visible {
   outline: none;
 }
 
-.category-count {
-  color: var(--text-light);
-  font-weight: 400;
-}
-
-.category-chevron {
+.completed-chevron {
   flex-shrink: 0;
   color: var(--text-light);
   transition: transform 0.2s ease;
 }
 
-.category-header.collapsed .category-chevron {
+.completed-header.collapsed .completed-chevron {
   transform: rotate(-90deg);
+}
+
+.completed-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.completed-body.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.completed-body > .completed-body-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .items-list {
@@ -288,8 +290,13 @@
   border-radius: 0.375rem;
 }
 
-.list-item:has(.item-body:hover) {
-  background: var(--item-bg-hover);
+/* Hover styles in this file sit behind (hover: hover): a phone keeps
+   "hovering" wherever it was last tapped, so the row that slides under the
+   finger after a check-off would light up. */
+@media (hover: hover) {
+  .list-item:has(.item-body:hover) {
+    background: var(--item-bg-hover);
+  }
 }
 
 .item-body:focus,
@@ -335,8 +342,10 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.list-item input[type="checkbox"]:hover {
-  border-color: var(--primary);
+@media (hover: hover) {
+  .list-item input[type="checkbox"]:hover {
+    border-color: var(--primary);
+  }
 }
 
 .list-item input[type="checkbox"]:checked {
@@ -359,48 +368,34 @@
   box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
+/* Name over the category, so every row is the same height. */
 .list-item .item-body {
   flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
   font-size: 16px;
   color: var(--text);
 }
 
-.item-meals-list {
-  display: flex;
+/* The category replaces the meal names: it's what helps find the item. */
+.item-category {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.item-for {
+  gap: 0.3rem;
   color: var(--text-light);
   font-size: 12px;
 }
 
-/* The mobile stand-in for the pill list. */
-.item-meals-summary {
-  display: none;
-  color: var(--text-light);
-  font-size: 12px;
+.item-category-icon {
+  flex-shrink: 0;
 }
 
 .item-menu {
   position: relative;
   flex: 0 0 auto;
-}
-
-.item-meals {
-  padding: 0.15rem 0.6rem;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-light);
 }
 
 .empty-hint {
@@ -548,23 +543,6 @@
   .list-header {
     flex-direction: row;
     align-items: center;
-  }
-
-  /* Stack the name over the meal summary so every row is the same height,
-     rather than only the ones long enough to wrap. */
-  .list-item .item-body {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-  }
-
-  /* Naming every meal costs more width than it's worth on a phone. */
-  .item-meals-list {
-    display: none;
-  }
-
-  .item-meals-summary {
-    display: inline;
   }
 
   .add-item-form {

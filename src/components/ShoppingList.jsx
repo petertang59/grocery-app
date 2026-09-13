@@ -21,6 +21,19 @@ import './ShoppingList.css';
 // Alphabetical for the picker; the list itself keeps its aisle order.
 const ALL_STORES = 'All';
 const NO_STORE = 'No store';
+const ALL_CATEGORIES = 'All categories';
+
+// The store tab survives a reload or a trip to another app mid-shop. Storage
+// can throw (private mode, blocked site data), in which case it's just "All".
+const STORE_KEY = 'shoppingList.store';
+
+const readSavedStore = () => {
+  try {
+    return localStorage.getItem(STORE_KEY) || ALL_STORES;
+  } catch {
+    return ALL_STORES;
+  }
+};
 
 export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const toast = useToast();
@@ -41,7 +54,8 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(null);
-  const [collapsed, setCollapsed] = useState(() => new Set());
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [showFixedProgress, setShowFixedProgress] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -54,8 +68,26 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const [detailsTouched, setDetailsTouched] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [catalogue, setCatalogue] = useState([]);
-  const [activeTab, setActiveTab] = useState(ALL_STORES);
+  const [activeTab, setActiveTab] = useState(readSavedStore);
   const observerRef = useRef(null);
+  const tabStripRef = useRef(null);
+  const tabScrollStart = useRef(0);
+
+  // Only an actual tap saves the choice. When the saved store has nothing on
+  // the list, another tab shows for now, and the saved one comes back as soon
+  // as it has items again.
+  const chooseTab = (tab) => {
+    // The finger scrolled the strip rather than tapping a tab.
+    const strip = tabStripRef.current;
+    if (strip && Math.abs(strip.scrollLeft - tabScrollStart.current) > 4) return;
+
+    setActiveTab(tab);
+    try {
+      localStorage.setItem(STORE_KEY, tab);
+    } catch {
+      // Not saved; the tab still switches for this visit.
+    }
+  };
 
   // Callback ref: attach an IntersectionObserver to the top progress bar as
   // soon as it mounts, so the fixed bottom bar shows only once it's scrolled
@@ -92,15 +124,6 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       document.body.style.overflow = '';
     };
   }, [showAddModal]);
-
-  const toggleCategory = (category) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
-      return next;
-    });
-  };
 
   // Load the whole shopping list and keep it in sync across devices.
   useEffect(() => {
@@ -159,7 +182,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
           ids: [],
           manualIngredientIds: [],
           checkedCount: 0,
-          meals: new Set(),
+          checkedAt: '',
           category:
             catalogueItem?.category || item.ingredients?.category || 'Other',
         });
@@ -167,7 +190,10 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       const group = map.get(key);
       group.ids.push(item.id);
       if (item.is_checked) group.checkedCount += 1;
-      if (item.meals?.name) group.meals.add(item.meals.name);
+      // ISO timestamps compare correctly as strings.
+      if (item.checked_at && item.checked_at > group.checkedAt) {
+        group.checkedAt = item.checked_at;
+      }
       // No meal means the ingredient row exists only for this list entry.
       if (!item.meal_id && item.ingredient_id) {
         group.manualIngredientIds.push(item.ingredient_id);
@@ -179,9 +205,6 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
         ...g,
         count: g.ids.length,
         checked: g.checkedCount === g.ids.length,
-        mealList: [...g.meals].sort(),
-        // Only editable when every row behind it was added by hand — a merged
-        // group that also comes from a meal is owned by that meal.
       }))
       // Alphabetical only — keep a stable order so checking doesn't reorder.
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -220,19 +243,59 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       return group.groceryStores.includes(tab);
     }).length;
 
-  // Bucket the merged items by category, in standard aisle order.
-  const categoryOrder = [...categories];
-  const categorySections = categoryOrder
-    .map((category) => {
-      const items = visibleGroups.filter((g) => g.category === category);
-      return {
-        category,
-        items,
-        pending: items.filter((g) => !g.checked),
-        grabbed: items.filter((g) => g.checked),
-      };
-    })
-    .filter((section) => section.items.length > 0);
+  // Aisle order from Settings; anything unrecognised sorts to the end.
+  const categoryRank = (category) => {
+    const index = categories.indexOf(category);
+    return index === -1 ? categories.length : index;
+  };
+
+  // The filter only offers categories with something still to get here, so
+  // picking one never lands on an empty list.
+  const remainingHere = visibleGroups.filter((g) => !g.checked);
+  const remainingByCategory = new Map();
+  for (const group of remainingHere) {
+    remainingByCategory.set(
+      group.category,
+      (remainingByCategory.get(group.category) ?? 0) + 1
+    );
+  }
+  const categoryFilterOptions = [
+    ALL_CATEGORIES,
+    ...[...remainingByCategory.keys()].sort(
+      (a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b)
+    ),
+  ];
+  const categoryCounts = {
+    [ALL_CATEGORIES]: remainingHere.length,
+    ...Object.fromEntries(remainingByCategory),
+  };
+
+  // A category with nothing left (checked off here, or on someone else's
+  // phone) drops out of the options, and the list shows every category.
+  const currentCategory = categoryFilterOptions.includes(categoryFilter)
+    ? categoryFilter
+    : ALL_CATEGORIES;
+
+  const matchesCategory = (group) =>
+    currentCategory === ALL_CATEGORIES || group.category === currentCategory;
+
+  // Still to get: grouped by aisle without the headers, then A–Z, so similar
+  // things sit together.
+  const remainingItems = remainingHere
+    .filter(matchesCategory)
+    .sort(
+      (a, b) =>
+        categoryRank(a.category) - categoryRank(b.category) ||
+        a.name.localeCompare(b.name)
+    );
+
+  // Most recently checked first, so undoing a mis-tap is right at the top.
+  const completedItems = visibleGroups
+    .filter((g) => g.checked && matchesCategory(g))
+    .sort(
+      (a, b) =>
+        b.checkedAt.localeCompare(a.checkedAt) || a.name.localeCompare(b.name)
+    );
 
   const grabbedCount = visibleGroups.filter((g) => g.checked).length;
   const visibleCount = visibleGroups.length;
@@ -244,11 +307,25 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
 
   const toggleGroup = async (group) => {
     const target = !group.checked;
+    const checkedAt = target ? new Date().toISOString() : null;
 
-    // Optimistic UI update for every underlying row.
+    // Checking off the last item in the filtered category clears the filter
+    // for good, rather than it springing back if that item is unchecked.
+    if (
+      target &&
+      group.category === currentCategory &&
+      remainingByCategory.get(group.category) === 1
+    ) {
+      setCategoryFilter(ALL_CATEGORIES);
+    }
+
+    // Optimistic UI update for every underlying row. checked_at goes in too,
+    // so the item lands at the top of Completed straight away.
     setItems((prev) =>
       prev.map((item) =>
-        group.ids.includes(item.id) ? { ...item, is_checked: target } : item
+        group.ids.includes(item.id)
+          ? { ...item, is_checked: target, checked_at: checkedAt }
+          : item
       )
     );
 
@@ -257,7 +334,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
         .from('shopping_list_items')
         .update({
           is_checked: target,
-          checked_at: target ? new Date().toISOString() : null,
+          checked_at: checkedAt,
         })
         .in('id', group.ids);
 
@@ -326,24 +403,14 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
         }}
       >
         <span className="item-name">{group.name}</span>
-        {group.mealList.length > 0 && (
-          <>
-            <span className="item-meals-list">
-              <span className="item-for">For:</span>
-              {group.mealList.map((mealName) => (
-                <span key={mealName} className="item-meals">
-                  {mealName}
-                </span>
-              ))}
-            </span>
-            {/* Narrow screens get the tally instead of a wrapping pill list;
-                CSS picks one, so both stay in the markup. */}
-            <span className="item-meals-summary">
-              For {group.mealList.length}{' '}
-              {group.mealList.length === 1 ? 'meal' : 'meals'}
-            </span>
-          </>
-        )}
+        <span className="item-category">
+          <CategoryIcon
+            name={group.category}
+            size={14}
+            className="item-category-icon"
+          />
+          {group.category}
+        </span>
       </div>
       {/* Removing is the only thing this button does; editing is the row. */}
       <div className="item-menu" onClick={(e) => e.stopPropagation()}>
@@ -597,7 +664,16 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
           )}
 
           {!loading && tabs.length > 1 && (
-            <div className="store-tabs" role="tablist" aria-label="Filter by store">
+            <div
+              className="store-tabs"
+              role="tablist"
+              aria-label="Filter by store"
+              ref={tabStripRef}
+              data-scroll-x
+              onPointerDown={(e) => {
+                tabScrollStart.current = e.currentTarget.scrollLeft;
+              }}
+            >
               {tabs.map((tab) => (
                 <button
                   key={tab}
@@ -605,12 +681,26 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
                   role="tab"
                   aria-selected={tab === currentTab}
                   className={`store-tab${tab === currentTab ? ' active' : ''}`}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => chooseTab(tab)}
                 >
                   {tab}
                   <span className="store-tab-count">{remainingFor(tab)}</span>
                 </button>
               ))}
+            </div>
+          )}
+
+          {!loading && groups.length > 0 && (
+            <div className="list-filters">
+              <CategorySelect
+                variant="compact"
+                label="Filter by category"
+                value={currentCategory}
+                options={categoryFilterOptions}
+                counts={categoryCounts}
+                allOption={ALL_CATEGORIES}
+                onChange={setCategoryFilter}
+              />
             </div>
           )}
 
@@ -672,29 +762,40 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
                   ></div>
                 </div>
               </div>
-              {categorySections.map((section) => (
-                <div className="category-section" key={section.category}>
+              <div className="list-card">
+                <p className="list-card-heading">
+                  Remaining
+                  <span className="list-card-count">
+                    ({remainingItems.length})
+                  </span>
+                </p>
+                {remainingItems.length > 0 ? (
+                  <ul className="items-list">{remainingItems.map(renderItem)}</ul>
+                ) : (
+                  <p className="list-card-empty">Everything’s in the cart.</p>
+                )}
+              </div>
+
+              {/* Checked items park down here, out of the way of what's still
+                  to find. Collapsed until asked for. */}
+              {completedItems.length > 0 && (
+                <div className="list-card">
                   <button
                     type="button"
-                    className={`category-header${
-                      collapsed.has(section.category) ? ' collapsed' : ''
+                    className={`completed-header${
+                      completedOpen ? '' : ' collapsed'
                     }`}
-                    onClick={() => toggleCategory(section.category)}
-                    aria-expanded={!collapsed.has(section.category)}
+                    onClick={() => setCompletedOpen((open) => !open)}
+                    aria-expanded={completedOpen}
                   >
-                    <CategoryIcon
-                      name={section.category}
-                      size={16}
-                      className="category-section-icon"
-                    />
-                    <span className="category-title">
-                      {section.category}{' '}
-                      <span className="category-count">
-                        ({section.pending.length} remaining)
+                    <span className="list-card-heading">
+                      Completed
+                      <span className="list-card-count">
+                        ({completedItems.length})
                       </span>
                     </span>
                     <svg
-                      className="category-chevron"
+                      className="completed-chevron"
                       width="18"
                       height="18"
                       viewBox="0 0 24 24"
@@ -709,34 +810,18 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
                     </svg>
                   </button>
                   <div
-                    className={`category-body${
-                      collapsed.has(section.category) ? ' collapsed' : ''
+                    className={`completed-body${
+                      completedOpen ? '' : ' collapsed'
                     }`}
                   >
-                    <div className="category-body-inner">
-                      {section.pending.length > 0 && (
-                        <ul className="items-list">
-                          {section.pending.map(renderItem)}
-                        </ul>
-                      )}
-
-                      {section.grabbed.length > 0 && (
-                        <div className="grabbed-section">
-                          <p className="grabbed-heading">
-                            Grabbed
-                            <span className="grabbed-count">
-                              ({section.grabbed.length})
-                            </span>
-                          </p>
-                          <ul className="items-list">
-                            {section.grabbed.map(renderItem)}
-                          </ul>
-                        </div>
-                      )}
+                    <div className="completed-body-inner">
+                      <ul className="items-list">
+                        {completedItems.map(renderItem)}
+                      </ul>
                     </div>
                   </div>
                 </div>
-              ))}
+              )}
             </>
           )}
         </div>

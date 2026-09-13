@@ -475,11 +475,19 @@
 }
 
 /* The same light grey wash as the store and count pills. */
-.btn-more:hover,
-.btn-more[aria-expanded='true'],
-.btn-remove-item:hover {
+.btn-more[aria-expanded='true'] {
   background: var(--count-pill);
   color: var(--text);
+}
+
+/* Hover only where there's a real pointer. A phone keeps "hovering" the spot
+   it last tapped, so whatever slides under the finger would light up. */
+@media (hover: hover) {
+  .btn-more:hover,
+  .btn-remove-item:hover {
+    background: var(--count-pill);
+    color: var(--text);
+  }
 }
 
 .btn-more:focus,

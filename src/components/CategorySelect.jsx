@@ -10,6 +10,10 @@ export default function CategorySelect({
   onChange,
   label = 'Category',
   variant = 'field',
+  // Optional: an option that means "no filter", shown without an icon.
+  allOption,
+  // Optional: { option: number }, shown on the right of each option.
+  counts,
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -38,7 +42,7 @@ export default function CategorySelect({
   return (
     <div
       className={`category-select-wrap${
-        variant === 'inline' ? ' inline' : ''
+        variant === 'field' ? '' : ` ${variant}`
       }`}
       ref={rootRef}
     >
@@ -51,7 +55,9 @@ export default function CategorySelect({
         aria-label={label}
       >
         <span className="category-value">
-          <CategoryIcon name={value} size={16} className="category-icon" />
+          {value !== allOption && (
+            <CategoryIcon name={value} size={16} className="category-icon" />
+          )}
           <span className="category-label">{value}</span>
         </span>
         <svg
@@ -87,14 +93,21 @@ export default function CategorySelect({
               }}
             >
               <span className="category-value">
-                <CategoryIcon
-                  name={option}
-                  size={16}
-                  className="category-icon"
-                />
+                {option !== allOption && (
+                  <CategoryIcon
+                    name={option}
+                    size={16}
+                    className="category-icon"
+                  />
+                )}
                 <span className="category-label">{option}</span>
               </span>
-              {option === value && (
+              {counts && (
+                <span className="category-option-count">
+                  {counts[option] ?? 0}
+                </span>
+              )}
+              {!counts && option === value && (
                 <svg
                   width="16"
                   height="16"
