@@ -257,8 +257,19 @@
    "hovering" wherever it was last tapped, so the row that slides under the
    finger after a check-off would light up. */
 @media (hover: hover) {
-  .list-item:has(.item-body:hover) {
-    background: var(--item-bg-hover);
+  /* Layered over the base colour: the hover tint is translucent, and the
+     row has to stay opaque to hide the swipe action behind it. */
+  .list-item:has(.item-body:hover) .swipe-content {
+    background: linear-gradient(var(--item-bg-hover), var(--item-bg-hover)),
+      var(--item-bg);
+  }
+}
+
+/* No swiping with a mouse, so the ✕ stays; on touch screens the swipe
+   replaces it. */
+@media (hover: none) {
+  .list-item .item-menu {
+    display: none;
   }
 }
 
@@ -268,22 +279,25 @@
 }
 
 .list-item {
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+/* The row's visible face, which slides when swiped (see SwipeRow). */
+.list-item .swipe-content {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 12px 16px;
-  margin: 0;
   background: var(--item-bg);
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  transition: all 0.2s ease;
 }
 
 .list-item:last-child {
   border-bottom: none;
 }
 
-.list-item.checked {
+.list-item.checked .swipe-content {
   opacity: 0.6;
   background: var(--item-bg-checked);
 }

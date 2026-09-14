@@ -16,6 +16,7 @@ import {
 import StoreSelect from './StoreSelect';
 import IngredientInput from './IngredientInput';
 import { CategoryIcon } from '../categoryIcons';
+import SwipeRow from './SwipeRow';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
@@ -54,6 +55,8 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const [loading, setLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(null);
+  // The one row swiped open to show Remove, by group key.
+  const [openSwipe, setOpenSwipe] = useState(null);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [showFixedProgress, setShowFixedProgress] = useState(false);
@@ -369,10 +372,18 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
     }
   };
 
+  // On a phone the ✕ is hidden; swiping the row left reveals Remove instead.
   const renderItem = (group) => (
-    <li
+    <SwipeRow
       key={group.key}
-      className={`list-item ${group.checked ? 'checked' : ''}`}
+      className={`list-item${group.checked ? ' checked' : ''}`}
+      open={openSwipe === group.key}
+      onOpenChange={(isOpen) => setOpenSwipe(isOpen ? group.key : null)}
+      actionLabel={`Remove ${group.name}`}
+      onAction={() => {
+        setOpenSwipe(null);
+        setPendingRemove(group);
+      }}
     >
       <input
         type="checkbox"
@@ -417,7 +428,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
           ✕
         </button>
       </div>
-    </li>
+    </SwipeRow>
   );
 
   // Refreshed each time the modal opens so a name typed here matches whatever

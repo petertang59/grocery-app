@@ -1,0 +1,43 @@
+/* The row clips the action, which sits behind the sliding content. */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-action {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.swipe-action:focus,
+.swipe-action:focus-visible {
+  outline: none;
+}
+
+/* Opaque, so the action only shows once the content slides off it. Vertical
+   panning stays with the browser; sideways movement is the row's. */
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-content {
+    transition: none;
+  }
+}
