@@ -19,7 +19,7 @@ import { CategoryIcon } from '../categoryIcons';
 import './ShoppingList.css';
 
 // Alphabetical for the picker; the list itself keeps its aisle order.
-const ALL_STORES = 'All';
+const ALL_STORES = 'All stores';
 const NO_STORE = 'No store';
 const ALL_CATEGORIES = 'All categories';
 
@@ -70,17 +70,11 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const [catalogue, setCatalogue] = useState([]);
   const [activeTab, setActiveTab] = useState(readSavedStore);
   const observerRef = useRef(null);
-  const tabStripRef = useRef(null);
-  const tabScrollStart = useRef(0);
 
-  // Only an actual tap saves the choice. When the saved store has nothing on
-  // the list, another tab shows for now, and the saved one comes back as soon
-  // as it has items again.
+  // Only picking a store saves the choice. When the saved store has nothing
+  // on the list, another one shows for now, and the saved one comes back as
+  // soon as it has items again.
   const chooseTab = (tab) => {
-    // The finger scrolled the strip rather than tapping a tab.
-    const strip = tabStripRef.current;
-    if (strip && Math.abs(strip.scrollLeft - tabScrollStart.current) > 4) return;
-
     setActiveTab(tab);
     try {
       localStorage.setItem(STORE_KEY, tab);
@@ -663,35 +657,23 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
             </p>
           )}
 
-          {!loading && tabs.length > 1 && (
-            <div
-              className="store-tabs"
-              role="tablist"
-              aria-label="Filter by store"
-              ref={tabStripRef}
-              data-scroll-x
-              onPointerDown={(e) => {
-                tabScrollStart.current = e.currentTarget.scrollLeft;
-              }}
-            >
-              {tabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === currentTab}
-                  className={`store-tab${tab === currentTab ? ' active' : ''}`}
-                  onClick={() => chooseTab(tab)}
-                >
-                  {tab}
-                  <span className="store-tab-count">{remainingFor(tab)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
+          {/* Store first, then category: narrow to where you are, then to
+              the aisle. */}
           {!loading && groups.length > 0 && (
             <div className="list-filters">
+              {tabs.length > 1 && (
+                <CategorySelect
+                  variant="compact"
+                  label="Filter by store"
+                  value={currentTab}
+                  options={tabs}
+                  counts={Object.fromEntries(
+                    tabs.map((tab) => [tab, remainingFor(tab)])
+                  )}
+                  showIcons={false}
+                  onChange={chooseTab}
+                />
+              )}
               <CategorySelect
                 variant="compact"
                 label="Filter by category"

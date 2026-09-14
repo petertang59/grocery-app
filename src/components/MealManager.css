@@ -156,7 +156,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
+  height: 40px;
   padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
@@ -195,7 +195,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  height: 32px;
+  height: 40px;
   padding: 0 1rem;
   background: var(--primary-solid);
   color: white;
@@ -581,7 +581,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
+  height: 40px;
   padding: 0 1rem;
   background: var(--bg);
   color: var(--text);
@@ -659,8 +659,8 @@
 
   /* Icon-only square in the header — no room for the label. */
   .btn-create-meal {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     padding: 0;
   }
 

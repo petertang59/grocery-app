@@ -14,6 +14,8 @@ export default function CategorySelect({
   allOption,
   // Optional: { option: number }, shown on the right of each option.
   counts,
+  // Off for lists that aren't categories (stores), which have no icons.
+  showIcons = true,
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -55,7 +57,7 @@ export default function CategorySelect({
         aria-label={label}
       >
         <span className="category-value">
-          {value !== allOption && (
+          {showIcons && value !== allOption && (
             <CategoryIcon name={value} size={16} className="category-icon" />
           )}
           <span className="category-label">{value}</span>
@@ -93,7 +95,7 @@ export default function CategorySelect({
               }}
             >
               <span className="category-value">
-                {option !== allOption && (
+                {showIcons && option !== allOption && (
                   <CategoryIcon
                     name={option}
                     size={16}
