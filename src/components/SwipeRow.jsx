@@ -7,7 +7,8 @@ const ACTION_WIDTH = 88;
 // scrolling the page.
 const SLOP = 8;
 
-// A list row that slides left under a finger to reveal one action behind it.
+// A list row that slides left under a finger, pulling one action in from its
+// right edge.
 // Touch only: a mouse never fires these handlers, so desktop keeps whatever
 // buttons the row already shows.
 //
@@ -21,7 +22,7 @@ export default function SwipeRow({
   children,
 }) {
   const rowRef = useRef(null);
-  const contentRef = useRef(null);
+  const trackRef = useRef(null);
   // { x, y, base, offset, horizontal } for the touch in progress.
   const gesture = useRef(null);
   // Set after a swipe so the tap the browser may synthesise on release
@@ -31,7 +32,7 @@ export default function SwipeRow({
   // The drag writes to the DOM directly rather than through state, so the
   // whole list doesn't re-render on every touchmove.
   const setOffset = (px, animate) => {
-    const el = contentRef.current;
+    const el = trackRef.current;
     if (!el) return;
     el.style.transition = animate ? '' : 'none';
     el.style.transform = px ? `translateX(${px}px)` : '';
@@ -136,19 +137,35 @@ export default function SwipeRow({
       onTouchCancel={onTouchEnd}
       onClickCapture={onClickCapture}
     >
-      <button
-        type="button"
-        className="swipe-action"
-        style={{ width: ACTION_WIDTH }}
-        aria-label={actionLabel}
-        aria-hidden={!open}
-        tabIndex={open ? 0 : -1}
-        onClick={onAction}
-      >
-        Remove
-      </button>
-      <div className="swipe-content" ref={contentRef}>
-        {children}
+      {/* The action rides just past the content's right edge and slides in
+          with it, rather than waiting underneath. Hidden rows then have
+          nothing behind them to show through at a fractional pixel edge. */}
+      <div className="swipe-track" ref={trackRef}>
+        <div className="swipe-content">{children}</div>
+        <button
+          type="button"
+          className="swipe-action"
+          style={{ width: ACTION_WIDTH }}
+          aria-label={actionLabel}
+          aria-hidden={!open}
+          tabIndex={open ? 0 : -1}
+          onClick={onAction}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
       </div>
     </li>
   );

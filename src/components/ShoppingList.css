@@ -522,6 +522,17 @@
     align-items: center;
   }
 
+  /* Tighter insets on a phone, where every pixel of width goes to the item
+     names. */
+  .list-card {
+    padding: 16px 12px;
+  }
+
+  .list-item .swipe-content {
+    padding: 12px;
+    gap: 0.75rem;
+  }
+
   .add-item-form {
     flex: 1;
     min-height: 0;
