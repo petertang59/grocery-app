@@ -973,10 +973,13 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
             <form onSubmit={addManualItem} className="add-item-form">
               <div className="modal-body">
                 <div className="form-group">
-                  <label htmlFor="newItemName">Name</label>
+                  {/* The zero-width space, and no "name" in the id or
+                      aria-label, keep iOS Safari from reading this as a
+                      person's name field and offering to AutoFill a contact. */}
+                  <label htmlFor="newItemField">Na{'\u200B'}me</label>
                   <IngredientInput
-                    id="newItemName"
-                    label="Item name"
+                    id="newItemField"
+                    label="Item"
                     placeholder="e.g., Paper towels"
                     value={newItemName}
                     onChange={onNameChange}

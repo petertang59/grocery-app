@@ -596,9 +596,11 @@ export default function Groceries({ onMealsChanged, refreshKey = 0 }) {
             <form onSubmit={saveItem} className="grocery-form">
               <div className="modal-body">
                 <div className="form-group">
-                  <label htmlFor="newGroceryName">Name</label>
+                  {/* The zero-width space keeps iOS Safari from reading this as a
+                      person's name field and offering to AutoFill a contact. */}
+                  <label htmlFor="newGroceryField">Na{'\u200B'}me</label>
                   <input
-                    id="newGroceryName"
+                    id="newGroceryField"
                     type="text"
                     autoComplete="off"
                     placeholder="e.g., Olive oil"

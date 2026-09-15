@@ -684,9 +684,11 @@ export default function MealManager({
             <form onSubmit={saveMeal} className="meal-form">
               <div className="modal-body">
               <div className="form-group">
-                <label htmlFor="mealName">Meal Name</label>
+                {/* The zero-width space keeps iOS Safari from reading this as a
+                    person's name field and offering to AutoFill a contact. */}
+                <label htmlFor="mealField">Meal Na{'\u200B'}me</label>
                 <input
-                  id="mealName"
+                  id="mealField"
                   type="text"
                   autoComplete="off"
                   placeholder="e.g., Spaghetti Carbonara"
@@ -703,7 +705,7 @@ export default function MealManager({
                 <label>Ingredients</label>
                 {/* Column headings; each control carries its own aria-label. */}
                 <div className="ingredient-row ingredient-head" aria-hidden="true">
-                  <span>Name</span>
+                  <span>Na{'\u200B'}me</span>
                   <span>Category</span>
                   <span>Store</span>
                   <span />
@@ -711,7 +713,7 @@ export default function MealManager({
                 {ingredients.map((ingredient, index) => (
                   <div key={index} className="ingredient-row">
                     <IngredientInput
-                      label={`Ingredient ${index + 1} name`}
+                      label={`Ingredient ${index + 1}`}
                       value={ingredient.name}
                       catalogue={catalogue}
                       onChange={(name) => updateIngredientName(index, name)}
