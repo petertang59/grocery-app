@@ -295,7 +295,10 @@ function App() {
 
       <main className="app-main">
         {loading || !statusLoaded ? (
-          <div className="loading">Loading your meals...</div>
+          <div className="loading" role="status">
+            <span className="loading-spinner" aria-hidden="true" />
+            Loading your meals...
+          </div>
         ) : (
           <>
             {view === 'meals' && (

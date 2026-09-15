@@ -606,10 +606,10 @@ export default function MealManager({
             </p>
           ) : (
             <>
-              <div className="meals-progress">
-                <div className="meals-progress-head">
+              <div className="meals-card">
+                <div className="meals-card-head">
                 <svg
-                  className="meals-progress-icon"
+                  className="meals-card-icon"
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
@@ -624,9 +624,10 @@ export default function MealManager({
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
-                <p className="meals-progress-text">
-                  {addedCount} {addedCount === 1 ? 'meal' : 'meals'} in shopping
-                  list
+                {/* Headed like the cards on the Shopping List page. */}
+                <p className="meals-card-heading">
+                  In shopping list
+                  <span className="meals-card-count">({addedCount})</span>
                 </p>
                 <button
                   type="button"
@@ -645,19 +646,43 @@ export default function MealManager({
                 )}
               </div>
 
-              <p className="meals-count">
-                Showing {remainingMeals.length}{' '}
-                {remainingMeals.length === 1 ? 'meal' : 'meals'}
-              </p>
-              {remainingMeals.length > 0 ? (
-                <div className="meals-grid">
-                  {remainingMeals.map(renderMealCard)}
+              <div className="meals-card">
+                <div className="meals-card-head">
+                  {/* The same knife and fork as the Meals nav item. */}
+                  <svg
+                    className="meals-card-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8" />
+                    <path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7" />
+                    <path d="m2.1 21.8 6.4-6.3" />
+                    <path d="m19 5-7 7" />
+                  </svg>
+                  <p className="meals-card-heading">
+                    Meals
+                    <span className="meals-card-count">
+                      ({remainingMeals.length})
+                    </span>
+                  </p>
                 </div>
-              ) : (
-                <p className="meals-all-added">
-                  Every meal is in your shopping list.
-                </p>
-              )}
+                {remainingMeals.length > 0 ? (
+                  <div className="meals-grid">
+                    {remainingMeals.map(renderMealCard)}
+                  </div>
+                ) : (
+                  <p className="meals-all-added">
+                    Every meal is in your shopping list.
+                  </p>
+                )}
+              </div>
             </>
           )}
         </div>

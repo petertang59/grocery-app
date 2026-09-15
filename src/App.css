@@ -295,10 +295,32 @@ body {
 }
 
 .loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-light);
   font-size: 1.1rem;
+}
+
+/* A ring with one green arc, turned by the same keyframes as the
+   pull-to-refresh indicator. */
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: pull-spin 0.8s linear infinite;
+}
+
+/* Still turning, so it reads as "working", just without the quick spin. */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation-duration: 2s;
+  }
 }
 
 @media (max-width: 768px) {
