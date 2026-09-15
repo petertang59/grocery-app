@@ -600,6 +600,7 @@ export default function Groceries({ onMealsChanged, refreshKey = 0 }) {
                   <input
                     id="newGroceryName"
                     type="text"
+                    autoComplete="off"
                     placeholder="e.g., Olive oil"
                     value={newName}
                     onChange={(e) => {

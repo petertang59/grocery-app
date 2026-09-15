@@ -384,6 +384,41 @@
   color: var(--text-light);
 }
 
+/* Just ticked or unticked: the strike draws across the name, or pulls back
+   off it, instead of snapping. A background line, since text-decoration
+   can't animate. The fade and fold that follow are in animateLeave. */
+.list-item.completing .item-name,
+.list-item.restoring .item-name {
+  text-decoration: none;
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% /
+    100% 1.5px;
+  animation: item-strike 0.18s ease-out;
+}
+
+.list-item.restoring .item-name {
+  background-size: 0 1.5px;
+  animation-name: item-unstrike;
+}
+
+@keyframes item-strike {
+  from {
+    background-size: 0 1.5px;
+  }
+}
+
+@keyframes item-unstrike {
+  from {
+    background-size: 100% 1.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-item.completing .item-name,
+  .list-item.restoring .item-name {
+    animation: none;
+  }
+}
+
 .progress {
   margin-bottom: 1.5rem;
   padding: 1.5rem;

@@ -234,6 +234,7 @@ export default function StoreManager({ open, onClose, onChanged }) {
                         <>
                           <input
                             type="text"
+                            autoComplete="off"
                             className="settings-list-input"
                             value={draftName}
                             aria-label={`Rename ${row.name}`}
@@ -302,6 +303,7 @@ export default function StoreManager({ open, onClose, onChanged }) {
                     <>
                       <input
                         type="text"
+                        autoComplete="off"
                         className="settings-list-input"
                         placeholder="e.g., Costco"
                         aria-label="New store name"

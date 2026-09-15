@@ -688,6 +688,7 @@ export default function MealManager({
                 <input
                   id="mealName"
                   type="text"
+                  autoComplete="off"
                   placeholder="e.g., Spaghetti Carbonara"
                   value={mealName}
                   onChange={(e) => setMealName(e.target.value)}

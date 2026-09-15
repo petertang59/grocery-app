@@ -75,6 +75,7 @@ export default function IngredientInput({
     <div className="ingredient-input" ref={rootRef}>
       <input
         type="text"
+        autoComplete="off"
         id={id}
         placeholder={placeholder}
         aria-label={label}

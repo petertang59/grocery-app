@@ -57,6 +57,15 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const [pendingRemove, setPendingRemove] = useState(null);
   // The one row swiped open to show Remove, by group key.
   const [openSwipe, setOpenSwipe] = useState(null);
+  // Items animating out of the section they're in, by group key:
+  // { to: 'completed' | 'remaining', checkedAt }. They stay in their old
+  // section until the animation ends. The running animations are kept so
+  // tapping again can cancel them.
+  const [leaving, setLeaving] = useState(() => new Map());
+  const leaveAnimations = useRef(new Map());
+  // The undo toast outlives the render that showed it, so it reaches the
+  // current list and toggle through here rather than stale copies.
+  const latest = useRef(null);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [showFixedProgress, setShowFixedProgress] = useState(false);
@@ -248,7 +257,13 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
 
   // The filter only offers categories with something still to get here, so
   // picking one never lands on an empty list.
-  const remainingHere = visibleGroups.filter((g) => !g.checked);
+  // Which section an item shows in: where its checkbox says, unless it's
+  // still animating out of the other one. That holds even if a realtime
+  // reload lands mid-animation.
+  const inRemaining = (g) =>
+    leaving.has(g.key) ? leaving.get(g.key).to === 'completed' : !g.checked;
+
+  const remainingHere = visibleGroups.filter(inRemaining);
   const remainingByCategory = new Map();
   for (const group of remainingHere) {
     remainingByCategory.set(
@@ -287,11 +302,15 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
     );
 
   // Most recently checked first, so undoing a mis-tap is right at the top.
+  // An item being unticked keeps its old checked time while it animates, so
+  // it doesn't jump to the bottom of the list mid-fade.
+  const checkedTime = (g) => leaving.get(g.key)?.checkedAt ?? g.checkedAt;
   const completedItems = visibleGroups
-    .filter((g) => g.checked && matchesCategory(g))
+    .filter((g) => !inRemaining(g) && matchesCategory(g))
     .sort(
       (a, b) =>
-        b.checkedAt.localeCompare(a.checkedAt) || a.name.localeCompare(b.name)
+        checkedTime(b).localeCompare(checkedTime(a)) ||
+        a.name.localeCompare(b.name)
     );
 
   const grabbedCount = visibleGroups.filter((g) => g.checked).length;
@@ -302,18 +321,121 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
     items.map((item) => item.meals?.name).filter(Boolean)
   ).size;
 
+  const stopLeaving = (key) =>
+    setLeaving((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
+
+  // Ticking or unticking plays out in place before the item changes section.
+  // The strike line draws or retracts (CSS, on .completing / .restoring),
+  // the row fades, then it folds shut so the rows below close the gap.
+  const animateLeave = (group, onDone) => {
+    const row = document.getElementById(`item-${group.key}`)?.closest('li');
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+    if (!row || reduceMotion) {
+      onDone();
+      return;
+    }
+
+    const face = row.querySelector('.swipe-content');
+    const fade = face.animate(
+      [{ opacity: getComputedStyle(face).opacity }, { opacity: 0 }],
+      { duration: 220, delay: 200, easing: 'ease-out', fill: 'forwards' }
+    );
+    const rowStyle = getComputedStyle(row);
+    const collapse = row.animate(
+      [
+        { height: rowStyle.height, borderBottomWidth: rowStyle.borderBottomWidth },
+        { height: '0px', borderBottomWidth: '0px' },
+      ],
+      {
+        duration: 240,
+        delay: 420,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'forwards',
+      }
+    );
+
+    leaveAnimations.current.set(group.key, [fade, collapse]);
+    collapse.finished
+      .then(() => {
+        leaveAnimations.current.delete(group.key);
+        onDone();
+      })
+      // Cancelled by a second tap; that path tidies up after itself.
+      .catch(() => {});
+  };
+
+  // Ticking something off offers a way back, in case it was the wrong row.
+  // Undo unticks it wherever it is by then: mid-animation, or in Completed.
+  const showUndo = (group) => {
+    toast(`${group.name} checked off`, 'undo', {
+      key: 'shopping-undo',
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        icon: (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        ),
+        onClick: () => {
+          const { groups: current, toggleGroup: toggle } = latest.current;
+          const now = current.find((g) => g.key === group.key);
+          // Already unticked by hand, or removed since: nothing to undo.
+          if (now?.checked) toggle(now);
+        },
+      },
+    });
+  };
+
   const toggleGroup = async (group) => {
     const target = !group.checked;
     const checkedAt = target ? new Date().toISOString() : null;
 
-    // Checking off the last item in the filtered category clears the filter
-    // for good, rather than it springing back if that item is unchecked.
-    if (
-      target &&
-      group.category === currentCategory &&
-      remainingByCategory.get(group.category) === 1
-    ) {
-      setCategoryFilter(ALL_CATEGORIES);
+    if (leaving.has(group.key)) {
+      // Tapped again mid-animation: the item was still in its old section,
+      // which is right for the state it's going back to, so just stop.
+      leaveAnimations.current.get(group.key)?.forEach((a) => a.cancel());
+      leaveAnimations.current.delete(group.key);
+      stopLeaving(group.key);
+    } else {
+      // Checking off the last item in the filtered category clears the
+      // filter for good, rather than it springing back on an untick. Items
+      // already animating out are checked, so they don't count as left.
+      const clearsFilter =
+        target &&
+        group.category === currentCategory &&
+        remainingHere.filter((g) => g.category === group.category && !g.checked)
+          .length === 1;
+
+      setLeaving((prev) =>
+        new Map(prev).set(group.key, {
+          to: target ? 'completed' : 'remaining',
+          checkedAt: group.checkedAt,
+        })
+      );
+      animateLeave(group, () => {
+        stopLeaving(group.key);
+        if (clearsFilter) setCategoryFilter(ALL_CATEGORIES);
+      });
+      if (target) showUndo(group);
     }
 
     // Optimistic UI update for every underlying row. checked_at goes in too,
@@ -342,6 +464,10 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       loadShoppingList(); // resync on failure
     }
   };
+
+  useEffect(() => {
+    latest.current = { groups, toggleGroup };
+  });
 
   const removeGroup = async (group) => {
     const idsToRemove = group.ids;
@@ -376,7 +502,13 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   const renderItem = (group) => (
     <SwipeRow
       key={group.key}
-      className={`list-item${group.checked ? ' checked' : ''}`}
+      className={`list-item${group.checked ? ' checked' : ''}${
+        leaving.has(group.key)
+          ? leaving.get(group.key).to === 'completed'
+            ? ' completing'
+            : ' restoring'
+          : ''
+      }`}
       open={openSwipe === group.key}
       onOpenChange={(isOpen) => setOpenSwipe(isOpen ? group.key : null)}
       actionLabel={`Remove ${group.name}`}

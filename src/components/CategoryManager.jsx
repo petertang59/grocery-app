@@ -258,6 +258,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                         <>
                           <input
                             type="text"
+                            autoComplete="off"
                             className="settings-list-input"
                             value={draftName}
                             aria-label={`Rename ${row.name}`}
@@ -336,6 +337,7 @@ export default function CategoryManager({ open, onClose, onChanged }) {
                     <>
                       <input
                         type="text"
+                        autoComplete="off"
                         className="settings-list-input"
                         placeholder="e.g., Snacks"
                         aria-label="New category name"
