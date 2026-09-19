@@ -302,6 +302,15 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
     );
 
   // Most recently checked first, so undoing a mis-tap is right at the top.
+  // Remaining is already in aisle order, so each run of one category becomes
+  // its own subheaded group.
+  const remainingSections = [];
+  for (const group of remainingItems) {
+    const last = remainingSections[remainingSections.length - 1];
+    if (last?.category === group.category) last.items.push(group);
+    else remainingSections.push({ category: group.category, items: [group] });
+  }
+
   // An item being unticked keeps its old checked time while it animates, so
   // it doesn't jump to the bottom of the list mid-fade.
   const checkedTime = (g) => leaving.get(g.key)?.checkedAt ?? g.checkedAt;
@@ -499,7 +508,8 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
   };
 
   // On a phone the ✕ is hidden; swiping the row left reveals Remove instead.
-  const renderItem = (group) => (
+  // showCategory is off under a Remaining subheader, which already names it.
+  const renderItem = (group, { showCategory = true } = {}) => (
     <SwipeRow
       key={group.key}
       className={`list-item${group.checked ? ' checked' : ''}${
@@ -540,14 +550,16 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
         }}
       >
         <span className="item-name">{group.name}</span>
-        <span className="item-category">
-          <CategoryIcon
-            name={group.category}
-            size={14}
-            className="item-category-icon"
-          />
-          {group.category}
-        </span>
+        {showCategory && (
+          <span className="item-category">
+            <CategoryIcon
+              name={group.category}
+              size={14}
+              className="item-category-icon"
+            />
+            {group.category}
+          </span>
+        )}
       </div>
       {/* Removing is the only thing this button does; editing is the row. */}
       <div className="item-menu" onClick={(e) => e.stopPropagation()}>
@@ -895,7 +907,21 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
                   </span>
                 </p>
                 {remainingItems.length > 0 ? (
-                  <ul className="items-list">{remainingItems.map(renderItem)}</ul>
+                  remainingSections.map(({ category, items: rows }) => (
+                    <div className="remaining-category" key={category}>
+                      <p className="remaining-category-title">
+                        <CategoryIcon
+                          name={category}
+                          size={16}
+                          className="remaining-category-icon"
+                        />
+                        {category}
+                      </p>
+                      <ul className="items-list">
+                        {rows.map((row) => renderItem(row, { showCategory: false }))}
+                      </ul>
+                    </div>
+                  ))
                 ) : (
                   <p className="list-card-empty">Everything’s in the cart.</p>
                 )}
@@ -941,7 +967,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
                   >
                     <div className="completed-body-inner">
                       <ul className="items-list">
-                        {completedItems.map(renderItem)}
+                        {completedItems.map((row) => renderItem(row))}
                       </ul>
                     </div>
                   </div>

@@ -186,6 +186,22 @@
   font-size: 0.95rem;
 }
 
+/* Category subheaders inside Remaining. Plain text colour for now: white in
+   dark mode, near-black in light mode so it still shows on the white card. */
+.remaining-category + .remaining-category {
+  margin-top: 1rem;
+}
+
+.remaining-category-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .completed-header {
   display: flex;
   align-items: center;
