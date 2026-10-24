@@ -187,6 +187,9 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
             .sort((a, b) => a.localeCompare(b)),
           ids: [],
           manualIngredientIds: [],
+          // The meals asking for this item, so a row can say it's needed
+          // more than once.
+          mealIds: new Set(),
           checkedCount: 0,
           checkedAt: '',
           category:
@@ -200,6 +203,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       if (item.checked_at && item.checked_at > group.checkedAt) {
         group.checkedAt = item.checked_at;
       }
+      if (item.meal_id) group.mealIds.add(item.meal_id);
       // No meal means the ingredient row exists only for this list entry.
       if (!item.meal_id && item.ingredient_id) {
         group.manualIngredientIds.push(item.ingredient_id);
@@ -210,6 +214,9 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
       .map((g) => ({
         ...g,
         count: g.ids.length,
+        // How many separate things want this item: each meal, plus a manual
+        // add. Two meals needing onions shows as ×2.
+        needed: g.mealIds.size + (g.manualIngredientIds.length > 0 ? 1 : 0),
         checked: g.checkedCount === g.ids.length,
       }))
       // Alphabetical only — keep a stable order so checking doesn't reorder.
@@ -549,7 +556,18 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
           }
         }}
       >
-        <span className="item-name">{group.name}</span>
+        {/* The row stacks name over category, so these share a line. */}
+        <span className="item-title">
+          <span className="item-name">{group.name}</span>
+          {group.needed > 1 && (
+            <span
+              className="item-multiplier"
+              aria-label={`Needed ${group.needed} times`}
+            >
+              ×{group.needed}
+            </span>
+          )}
+        </span>
         {showCategory && (
           <span className="item-category">
             <CategoryIcon

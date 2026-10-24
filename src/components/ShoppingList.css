@@ -373,6 +373,24 @@
   color: var(--text);
 }
 
+.item-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* How many meals want this item. A quiet pill, like the store counts. */
+.item-multiplier {
+  flex-shrink: 0;
+  padding: 0.05rem 0.4rem;
+  background: var(--count-pill);
+  border-radius: 999px;
+  color: var(--text-light);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* The category replaces the meal names: it's what helps find the item. */
 .item-category {
   display: inline-flex;
