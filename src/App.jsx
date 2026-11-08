@@ -14,7 +14,8 @@ function App() {
   const { theme, toggleTheme } = useTheme();
   const { session, loading: sessionLoading } = useSession();
   // 'meals' | 'shopping' | 'groceries' | 'settings'
-  const [view, setView] = useState('meals');
+  // The list is what the app is opened for mid-shop, so it leads.
+  const [view, setView] = useState('shopping');
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shoppingCount, setShoppingCount] = useState(0);
@@ -157,6 +158,38 @@ function App() {
       <aside className="sidebar">
         <nav className="nav-buttons">
           <button
+            className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
+            onClick={() => setView('shopping')}
+            aria-label="Shopping"
+            title={sidebarCollapsed ? 'Shopping' : undefined}
+          >
+            <span className="nav-icon-wrap">
+              <svg
+                className="nav-icon"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              {shoppingCount > 0 && (
+                <span className="nav-dot" aria-hidden="true" />
+              )}
+            </span>
+            <span className="nav-label">Shopping</span>
+            {shoppingCount > 0 && (
+              <span className="nav-count">{shoppingCount}</span>
+            )}
+          </button>
+          <button
             className={`nav-btn ${view === 'meals' ? 'active' : ''}`}
             onClick={() => setView('meals')}
             aria-label="Meals"
@@ -180,38 +213,6 @@ function App() {
               <path d="m19 5-7 7" />
             </svg>
             <span className="nav-label">Meals</span>
-          </button>
-          <button
-            className={`nav-btn ${view === 'shopping' ? 'active' : ''}`}
-            onClick={() => setView('shopping')}
-            aria-label="Shopping List"
-            title={sidebarCollapsed ? 'Shopping List' : undefined}
-          >
-            <span className="nav-icon-wrap">
-              <svg
-                className="nav-icon"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-              {shoppingCount > 0 && (
-                <span className="nav-dot" aria-hidden="true" />
-              )}
-            </span>
-            <span className="nav-label">Shopping List</span>
-            {shoppingCount > 0 && (
-              <span className="nav-count">{shoppingCount}</span>
-            )}
           </button>
           <button
             className={`nav-btn ${view === 'groceries' ? 'active' : ''}`}

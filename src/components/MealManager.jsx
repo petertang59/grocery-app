@@ -15,6 +15,7 @@ import {
 import IngredientInput from './IngredientInput';
 import StoreSelect from './StoreSelect';
 import ModalHeader from './ModalHeader';
+import AddMealModal from './AddMealModal';
 import { shouldFlipMenu } from '../menuPlacement';
 import './MealManager.css';
 
@@ -62,6 +63,8 @@ export default function MealManager({
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuUp, setMenuUp] = useState(false);
   const [catalogue, setCatalogue] = useState([]);
+  // The meal whose ingredients are being picked before they go on the list.
+  const [pendingAdd, setPendingAdd] = useState(null);
 
   const isEditing = editingMealId !== null;
   const pendingDeleteMeal = meals.find((m) => m.id === pendingDeleteId);
@@ -69,15 +72,17 @@ export default function MealManager({
   // total past the number of cards on screen.
   const addedCount = meals.filter((m) => shoppingMealIds.includes(m.id)).length;
 
-  const addMealToList = async (meal) => {
-    if (meal.ingredients.length === 0) {
+  // `chosen` is the ingredients ticked in the confirmation modal, which is
+  // everything unless something was unticked as already at home.
+  const addMealToList = async (meal, chosen = meal.ingredients) => {
+    if (chosen.length === 0) {
       toast('This meal has no ingredients to add.', 'error');
       return;
     }
     // Update the UI immediately so the button rolls right away.
     setShoppingMealIds((prev) => [...new Set([...prev, meal.id])]);
     try {
-      const items = meal.ingredients.map((ing) => ({
+      const items = chosen.map((ing) => ({
         meal_id: meal.id,
         ingredient_id: ing.id,
         is_checked: false,
@@ -506,8 +511,11 @@ export default function MealManager({
                     e.stopPropagation();
                     if (shoppingMealIds.includes(meal.id)) {
                       removeMealFromList(meal);
+                    } else if (meal.ingredients.length === 0) {
+                      toast('This meal has no ingredients to add.', 'error');
                     } else {
-                      addMealToList(meal);
+                      // Confirm which ingredients are actually needed.
+                      setPendingAdd(meal);
                     }
                   }}
                   aria-label={
@@ -839,6 +847,18 @@ export default function MealManager({
         }}
         onCancel={() => setShowClearConfirm(false)}
       />
+
+      {pendingAdd && (
+        <AddMealModal
+          key={pendingAdd.id}
+          meal={pendingAdd}
+          onCancel={() => setPendingAdd(null)}
+          onConfirm={(chosen) => {
+            addMealToList(pendingAdd, chosen);
+            setPendingAdd(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -811,7 +811,7 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
     <div className="shopping-list">
       <section className="list-section">
         <div className="page-header list-header">
-          <h2>Shopping List</h2>
+          <h2>Shopping</h2>
           <button
             type="button"
             className="btn-add-item"
@@ -867,8 +867,8 @@ export default function ShoppingList({ onShoppingChanged, refreshKey = 0 }) {
             <div className="empty-list">
               <p>Your shopping list is empty.</p>
               <p className="empty-hint">
-                Go to the <strong>Meals</strong> tab and tap
-                "Add to Shopping List" on the meals you're cooking this week.
+                Go to the <strong>Meals</strong> tab and tap the cart on
+                the meals you're cooking this week.
               </p>
             </div>
           ) : (
